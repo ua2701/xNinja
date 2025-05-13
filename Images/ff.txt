@@ -1,0 +1,173 @@
+Absolutely! Let's break down the BeyondInsight and Password Safe REST API guide step by step in a beginner-friendly way, especially focused on using Python.
+
+🔰 What is a REST API?
+A REST API lets your program talk to another application (like BeyondInsight/Password Safe) using HTTP (the same way web browsers do).
+
+Imagine you want to ask Password Safe:
+
+“Hey, give me a list of accounts you manage.”
+
+Or “Please log me in first.”
+That’s done via REST API calls like GET, POST, etc.
+
+🔐 Authentication & Setup
+Before your code can talk to Password Safe, it needs to log in using special credentials.
+
+There are two main ways to authenticate:
+
+API Key Authentication
+
+OAuth Authentication (advanced; usually used in large applications)
+
+For now, let’s focus on API Key authentication, as it's simpler.
+
+🧾 Step-by-Step to Use API with Python
+🧰 What you need
+An API key (you get this from your BeyondInsight admin)
+
+The RunAs username (a user that has API permissions)
+
+The Password (optional; needed if password factor is enabled)
+
+Python installed
+
+Python module: requests
+
+You can install it using:
+
+bash
+Copy
+Edit
+pip install requests
+🪜 Step 1: Set up Headers
+This is like saying:
+"Hi Password Safe, I'm this app, running as this user, here's my API key."
+
+python
+Copy
+Edit
+import requests
+
+# Your API credentials here
+api_key = "c479a66f...c9484d"  # shortened for example
+runas_user = "doe-main\\johndoe"  # include double backslashes in Python
+password = "[un1qu3]"  # optional, only if password required
+
+# Combine everything into the authorization header
+auth_header = {
+    'Authorization': f'PS-Auth key={api_key}; runas={runas_user}; pwd={password};'
+}
+🪜 Step 2: Start a Session and Sign In
+Use a session object to persist your login session.
+
+python
+Copy
+Edit
+# Create session
+session = requests.Session()
+
+# Add headers to session
+session.headers.update(auth_header)
+
+# API base URL (replace `the-server` with your actual server or cloud URL)
+base_url = "https://the-server/BeyondTrust/api/public/v3"
+
+# POST to sign in
+sign_in_url = f"{base_url}/Auth/SignAppin"
+response = session.post(sign_in_url)
+
+# Check if login was successful
+if response.status_code == 200:
+    print("Login successful!")
+else:
+    print("Login failed:", response.status_code, response.text)
+🪜 Step 3: Make API Calls (e.g., get managed accounts)
+After signing in, you can call other endpoints.
+
+python
+Copy
+Edit
+# Example: Get managed accounts
+accounts_url = f"{base_url}/ManagedAccounts"
+accounts_response = session.get(accounts_url)
+
+if accounts_response.status_code == 200:
+    accounts_data = accounts_response.json()  # Get data as Python dict
+    print("Managed Accounts:", accounts_data)
+else:
+    print("Failed to get accounts:", accounts_response.status_code, accounts_response.text)
+🪜 Step 4: Log Out (Always do this!)
+Logging out cleans up the session on the server.
+
+python
+Copy
+Edit
+# POST to sign out
+signout_url = f"{base_url}/Auth/Signout"
+signout_response = session.post(signout_url)
+
+if signout_response.status_code == 200:
+    print("Logged out successfully.")
+else:
+    print("Logout failed:", signout_response.status_code, signout_response.text)
+🔁 Optional: Two-Factor Challenge
+If your admin has enabled two-factor login (e.g., mobile OTP), the first SignAppIn call may return 401 Unauthorized with a special header asking for the challenge.
+
+Then you must:
+
+Read the WWW-Authenticate-2FA header from the first response.
+
+Ask the user to input the OTP or challenge answer.
+
+Retry SignAppIn with the challenge=XXXXXX; in the header.
+
+Let me know if your setup requires 2FA, and I’ll help add that part.
+
+✅ Summary
+Step	What You Do
+1	Set headers with API key and user
+2	Start a session and log in
+3	Use GET/POST requests to access features
+4	Log out when done
+
+🧪 Test Script Template
+Here’s a full minimal working version:
+
+python
+Copy
+Edit
+import requests
+
+# ---- CONFIGURATION ----
+api_key = "your_128_char_api_key_here"
+runas_user = "yourdomain\\youruser"
+password = "[yourpassword]"
+base_url = "https://your-server/BeyondTrust/api/public/v3"
+
+# ---- SETUP HEADERS ----
+headers = {
+    'Authorization': f'PS-Auth key={api_key}; runas={runas_user}; pwd={password};'
+}
+
+# ---- SESSION ----
+session = requests.Session()
+session.headers.update(headers)
+
+# ---- SIGN IN ----
+sign_in = session.post(f"{base_url}/Auth/SignAppin")
+if sign_in.status_code == 200:
+    print("Signed in successfully.")
+
+    # ---- GET MANAGED ACCOUNTS ----
+    managed_accounts = session.get(f"{base_url}/ManagedAccounts")
+    if managed_accounts.status_code == 200:
+        print("Accounts:", managed_accounts.json())
+    else:
+        print("Error getting accounts:", managed_accounts.text)
+
+    # ---- SIGN OUT ----
+    session.post(f"{base_url}/Auth/Signout")
+    print("Signed out.")
+
+else:
+    print("Sign-in failed:", sign_in.status_code, sign_in.text)
