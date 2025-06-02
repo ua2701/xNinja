@@ -1,0 +1,21 @@
+applications:
+  magneto:
+    code_url: "http://http://127.0.0.1:5000/magento/<username>"
+    login:
+      url: "https://magento.softwaretestingboard.com/customer/account/login"
+      username_selector: "input[name='login[username]']"
+      password_selector: "input[name='login[password]']"
+      login_button_selector: "button[name='send']"
+      username: "hello.world@gmail.com"
+      password: "CBFaN3)o@QZE"
+      
+  uiTestingPlayground:
+    code_url: "http://127.0.0.1:5000/uiTestingPlayground/<username>"
+    login:
+      url: "http://uitestingplayground.com/sampleapp"
+      username_selector: "input[name='UserName']"     
+      password_selector: "input[name='Password']"      
+      login_button_selector: "button#login"            
+      username: "username"                            
+      password: "pwd"                               
+      

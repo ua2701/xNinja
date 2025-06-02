@@ -1,0 +1,8 @@
+login:
+  url: "https://magento.softwaretestingboard.com/customer/account/login"
+  username_selector: "input[name='login[username]']"
+  password_selector: "input[name='login[password]']"
+  login_button_selector: "button[name='send']"
+  username: "hello.world@gmail.com"
+  password: "CBFaN3)o@QZE"
+
