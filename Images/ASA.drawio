@@ -1,0 +1,369 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="27.1.6">
+  <diagram name="Page-1" id="YXxDpN19LUlCQpWl19Bw">
+    <mxGraphModel dx="3000" dy="1192" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-1" value="User Client Machine" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="20" y="50" width="161" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-2" value="SFTD Client Agent" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="303" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-3" value="Web Browser" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="568" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-4" value="OKTA IdP" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="850" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-5" value="ASA Cloud Service" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-6" value="ASA Gateway/Proxy" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="50" width="160" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-7" value="Target Server" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1491" y="50" width="211" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-8" value="SFTD Server Agent" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1788" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-9" value="SSHD Daemon" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1988" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-10" value="PAM Module" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;elbow&quot;:&quot;vertical&quot;,&quot;curved&quot;:0,&quot;rounded&quot;:0};size=65;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="2271" y="50" width="150" height="3179" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-11" value="alt" style="shape=umlFrame;dashed=1;pointerEvents=0;dropTarget=0;strokeColor=#B20000;height=20;width=30;fillColor=#e51400;fontColor=#ffffff;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="367" y="311" width="569" height="479" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-12" value="[If No valid Okta session]" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;strokeWidth=2;fontSize=20;fontColor=default;fontStyle=0" vertex="1" parent="544hrU-uV9JZfV1vbPOJ-11">
+          <mxGeometry x="30" width="539" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-13" value="loop" style="shape=umlFrame;dashed=1;pointerEvents=0;dropTarget=0;strokeColor=#B3B3B3;height=20;width=40;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="90" y="2282" width="1518" height="371" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-14" value="[Session active]" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;strokeWidth=2;fontSize=20;" vertex="1" parent="544hrU-uV9JZfV1vbPOJ-13">
+          <mxGeometry x="40" width="1478" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-15" value="loop" style="shape=umlFrame;dashed=1;pointerEvents=0;dropTarget=0;strokeColor=#B3B3B3;height=20;width=40;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1114" y="2663" width="760" height="222" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-16" value="[Background sync (every minute)]" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;strokeWidth=2;fontSize=20;" vertex="1" parent="544hrU-uV9JZfV1vbPOJ-15">
+          <mxGeometry x="40" width="720" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-17" value="alt" style="shape=umlFrame;dashed=1;pointerEvents=0;dropTarget=0;strokeColor=#005700;height=20;width=30;strokeWidth=2;fontSize=20;fillColor=#008a00;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="66" y="1387" width="2315" height="1747" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-18" value="[Connection successful]" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;strokeWidth=2;fontSize=20;" vertex="1" parent="544hrU-uV9JZfV1vbPOJ-17">
+          <mxGeometry x="30" width="2285" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-19" value="[Connection failed]" style="shape=line;dashed=1;whiteSpace=wrap;verticalAlign=top;labelPosition=center;verticalLabelPosition=middle;align=center;strokeColor=#B3B3B3;strokeWidth=2;fontSize=20;" vertex="1" parent="544hrU-uV9JZfV1vbPOJ-17">
+          <mxGeometry y="1597" width="2315" height="3" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-20" value="sft ssh &lt;server_name or IP&gt;" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-1" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry x="-0.0241" y="-27" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="248" y="207" />
+            </Array>
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-21" value="Check do valid Okta session exists?" style="curved=1;endArrow=block;rounded=0;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="429" y="261" />
+              <mxPoint x="429" y="291" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-22" value="Open authentication URL" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="519" y="392" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-23" value="Navigate to Okta login" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-3" target="544hrU-uV9JZfV1vbPOJ-4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="792" y="446" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-24" value="Present login form" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-4" target="544hrU-uV9JZfV1vbPOJ-3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="795" y="500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-25" value="Submit credentials" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-3" target="544hrU-uV9JZfV1vbPOJ-4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="792" y="554" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-26" value="MFA challenge (if required)" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-4" target="544hrU-uV9JZfV1vbPOJ-3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="795" y="608" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-27" value="Complete MFA" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-3" target="544hrU-uV9JZfV1vbPOJ-4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="792" y="662" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-28" value="SSO token/authorization code" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-4" target="544hrU-uV9JZfV1vbPOJ-3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="795" y="716" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-29" value="Token via localhost callback" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-3" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="522" y="770" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-30" value="API call with Okta token" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="834" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-31" value="Evaluate access policies&#xa;(user groups, server assignments)" style="curved=1;endArrow=block;rounded=0;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-5" target="544hrU-uV9JZfV1vbPOJ-5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1176" y="910" />
+              <mxPoint x="1176" y="940" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-32" value="Short-lived SSH certificate + Gateway IP" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-5" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="763" y="994" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-33" value="SSH connection with certificate&#xa;(port 22)" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="872" y="1118" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-34" value="Validate SSH certificate&#xa;Extract user &amp; target server" style="curved=1;endArrow=block;rounded=0;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1401" y="1194" />
+              <mxPoint x="1401" y="1224" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-35" value="TCP connection attempt" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1482" y="1300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-36" value="TCP handshake complete" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-7" target="544hrU-uV9JZfV1vbPOJ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1485" y="1468" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-37" value="Forward SSH handshake" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-7">
+          <mxGeometry x="0.0039" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1482" y="1522" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-38" value="Receive SSH connection" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-7" target="544hrU-uV9JZfV1vbPOJ-9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1838" y="1624" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-39" value="Authentication request" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-9" target="544hrU-uV9JZfV1vbPOJ-10">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2213" y="1678" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-40" value="Consult ASA daemon" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-10" target="544hrU-uV9JZfV1vbPOJ-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2116" y="1732" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-41" value="Verify SSH certificate&#xa;Check server-side policies" style="curved=1;endArrow=block;rounded=0;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-8" target="544hrU-uV9JZfV1vbPOJ-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1914" y="1808" />
+              <mxPoint x="1914" y="1838" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-42" value="User provisioning&#xa;(create user, add to groups)" style="curved=1;endArrow=block;rounded=0;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-8" target="544hrU-uV9JZfV1vbPOJ-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1914" y="1914" />
+              <mxPoint x="1914" y="1944" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-43" value="Authentication success" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-8" target="544hrU-uV9JZfV1vbPOJ-10">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2113" y="1998" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-44" value="Authentication approved" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-10" target="544hrU-uV9JZfV1vbPOJ-9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2216" y="2052" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-45" value="SSH session established" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-9" target="544hrU-uV9JZfV1vbPOJ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1718" y="2106" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-46" value="Session ready" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="875" y="2160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-47" value="SSH shell access" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="251" y="2214" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-48" value="Commands/input" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-1" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="248" y="2363" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-49" value="Proxied traffic" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="872" y="2417" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-50" value="Forward to server" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1482" y="2471" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-51" value="Command output" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-7" target="544hrU-uV9JZfV1vbPOJ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1485" y="2525" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-52" value="Proxied response" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="875" y="2579" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-53" value="Display output" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="251" y="2633" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-54" value="POST /v1/server_sync" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-8" target="544hrU-uV9JZfV1vbPOJ-5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1505" y="2744" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-55" value="Updated policies/status" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-5" target="544hrU-uV9JZfV1vbPOJ-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1502" y="2865" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-56" value="Log SSH session events" style="curved=1;endArrow=block;rounded=0;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-8" target="544hrU-uV9JZfV1vbPOJ-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1914" y="2929" />
+              <mxPoint x="1914" y="2959" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-57" value="Connection timeout/error" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-6" target="544hrU-uV9JZfV1vbPOJ-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="875" y="3060" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-58" value="SSH connection failed" style="verticalAlign=bottom;edgeStyle=elbowEdgeStyle;elbow=vertical;curved=0;rounded=0;endArrow=block;strokeWidth=2;fontSize=20;" edge="1" parent="1" source="544hrU-uV9JZfV1vbPOJ-2" target="544hrU-uV9JZfV1vbPOJ-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="251" y="3114" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-59" value="Phase 1: User Initiates Connection &amp; Client-Side Authentication" style="fillColor=#60a917;strokeColor=#2D7600;fontColor=#ffffff;strokeWidth=2;fontSize=22;" vertex="1" parent="1">
+          <mxGeometry x="76" y="125" width="2295" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-60" value="Phase 2: Proxy Connection &amp; Server-Side Authorization" style="fillColor=#60a917;strokeColor=#2D7600;fontColor=#ffffff;strokeWidth=2;fontSize=22;" vertex="1" parent="1">
+          <mxGeometry x="76" y="1014" width="2295" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-61" value="connectex error occurs here" style="fillColor=#e51400;strokeColor=#B20000;fontColor=#ffffff;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1346" y="1317" width="249" height="51" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-62" value="Phase 3: Server-Side Processing &amp; Session Establishment" style="fillColor=#60a917;strokeColor=#2D7600;fontColor=#ffffff;strokeWidth=2;fontSize=22;" vertex="1" parent="1">
+          <mxGeometry x="76" y="1542" width="2295" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-63" value="Phase 4: Ongoing Communication &amp; Session Management" style="fillColor=#60a917;strokeColor=#2D7600;fontColor=#ffffff;strokeWidth=2;fontSize=22;" vertex="1" parent="1">
+          <mxGeometry x="76" y="2234" width="2295" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-64" value="EOF errors occur here" style="fillColor=#e51400;strokeColor=#B20000;fontColor=#ffffff;strokeWidth=2;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1133" y="2777" width="209" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="544hrU-uV9JZfV1vbPOJ-67" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Initiate SSH connection&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="127" y="173" width="226" height="36" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
