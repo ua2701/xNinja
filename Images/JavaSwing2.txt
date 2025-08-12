@@ -1,0 +1,563 @@
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import org.json.JSONObject;
+
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+public class OktaAuthService {
+
+    // Configuration keys expected in okta.properties
+    public static final String KEY_OKTA_DOMAIN = "okta.domain";
+    public static final String KEY_CLIENT_ID = "okta.clientId";
+    public static final String KEY_REDIRECT_URI = "okta.redirectUri";
+    public static final String KEY_SCOPES = "okta.scopes";
+
+    private final String oktaDomain;
+    private final String clientId;
+    private final String redirectUri;
+    private final String scopes;
+
+    // PKCE + state
+    private String codeVerifier;
+    private String codeChallenge;
+    private String state;
+
+    // tokens & user info
+    private String accessToken;
+    private String idToken;
+    private JSONObject userInfo;
+
+    // local server
+    private HttpServer server;
+    private final int localPort;
+    private CountDownLatch callbackLatch;
+
+    // timeout for waiting for auth callback (seconds)
+    private final long callbackTimeoutSeconds = 120;
+
+    public OktaAuthService(Properties config) {
+        this.oktaDomain = require(config, KEY_OKTA_DOMAIN);
+        this.clientId = require(config, KEY_CLIENT_ID);
+        this.redirectUri = require(config, KEY_REDIRECT_URI);
+        this.scopes = config.getProperty(KEY_SCOPES, "openid profile email");
+
+        // parse port from redirectUri (expecting http://localhost:PORT/path)
+        this.localPort = parsePort(redirectUri, 8080);
+
+        generatePKCEParameters();
+    }
+
+    private String require(Properties p, String key) {
+        String v = p.getProperty(key);
+        if (v == null || v.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required config: " + key);
+        }
+        return v.trim();
+    }
+
+    private int parsePort(String uri, int defaultPort) {
+        try {
+            URI u = new URI(uri);
+            int port = u.getPort();
+            return port == -1 ? defaultPort : port;
+        } catch (Exception e) {
+            return defaultPort;
+        }
+    }
+
+    private void generatePKCEParameters() {
+        try {
+            SecureRandom sr = new SecureRandom();
+
+            byte[] code = new byte[32];
+            sr.nextBytes(code);
+            codeVerifier = Base64.getUrlEncoder().withoutPadding().encodeToString(code);
+
+            // code challenge = BASE64URL( SHA256(code_verifier) )
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+            codeChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+
+            byte[] stateBytes = new byte[16];
+            sr.nextBytes(stateBytes);
+            state = Base64.getUrlEncoder().withoutPadding().encodeToString(stateBytes);
+
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to generate PKCE params", ex);
+        }
+    }
+
+    /**
+     * Perform the authentication flow:
+     *  1. start local server at redirect URI
+     *  2. open browser to Okta authorize URL
+     *  3. wait for callback, exchange code for tokens, fetch userinfo
+     *
+     * This method blocks until success or timeout, and returns userInfo JSON on success.
+     */
+    public JSONObject authenticate() throws Exception {
+        callbackLatch = new CountDownLatch(1);
+        startLocalServer();
+        openBrowserToAuthorize();
+
+        boolean arrived = callbackLatch.await(callbackTimeoutSeconds, TimeUnit.SECONDS);
+        if (!arrived) {
+            stopServerIfRunning();
+            throw new RuntimeException("Timeout waiting for authentication callback.");
+        }
+
+        // userInfo will be populated by the callback handler
+        return userInfo;
+    }
+
+    public String getAccessToken() { return accessToken; }
+    public String getIdToken() { return idToken; }
+    public JSONObject getUserInfo() { return userInfo; }
+
+    private void startLocalServer() throws IOException {
+        // stop any previous server
+        stopServerIfRunning();
+
+        server = HttpServer.create(new InetSocketAddress(localPort), 0);
+        // path from redirectUri should be used; default /callback
+        String path = "/";
+        try {
+            URI u = new URI(redirectUri);
+            path = u.getPath() == null || u.getPath().isEmpty() ? "/" : u.getPath();
+        } catch (Exception ignored) {}
+        server.createContext(path, new CallbackHandler());
+        server.setExecutor(null);
+        server.start();
+        System.out.println("OktaAuthService: local server started on port " + localPort + " path " + path);
+    }
+
+    private void stopServerIfRunning() {
+        if (server != null) {
+            try {
+                server.stop(0);
+            } catch (Exception ignored) {}
+            server = null;
+        }
+    }
+
+    private void openBrowserToAuthorize() throws Exception {
+        String authorizeEndpoint = String.format("https://%s/oauth2/default/v1/authorize", oktaDomain);
+
+        String authUrl = String.format(
+                "%s?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&state=%s&code_challenge=%s&code_challenge_method=S256",
+                authorizeEndpoint,
+                URLEncoder.encode(clientId, StandardCharsets.UTF_8.toString()),
+                URLEncoder.encode(scopes, StandardCharsets.UTF_8.toString()),
+                URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.toString()),
+                URLEncoder.encode(state, StandardCharsets.UTF_8.toString()),
+                URLEncoder.encode(codeChallenge, StandardCharsets.UTF_8.toString())
+        );
+
+        if (Desktop.isDesktopSupported()) {
+            Desktop.getDesktop().browse(new URI(authUrl));
+        } else {
+            // If no desktop available, just print URL and let caller handle
+            System.out.println("Open this URL in a browser to authenticate:\n" + authUrl);
+        }
+    }
+
+    /**
+     * Exchange authorization code for tokens and fetch userinfo.
+     */
+    private void exchangeCodeForTokensAndFetchUserInfo(String authCode) {
+        try {
+            String tokenEndpoint = String.format("https://%s/oauth2/default/v1/token", oktaDomain);
+            URL url = new URL(tokenEndpoint);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setDoOutput(true);
+
+            String postData = String.format(
+                    "grant_type=authorization_code&client_id=%s&code=%s&redirect_uri=%s&code_verifier=%s",
+                    URLEncoder.encode(clientId, StandardCharsets.UTF_8.toString()),
+                    URLEncoder.encode(authCode, StandardCharsets.UTF_8.toString()),
+                    URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.toString()),
+                    URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8.toString())
+            );
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(postData.getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            String response = readResponse(responseCode == 200 ? conn.getInputStream() : conn.getErrorStream());
+            if (responseCode != 200) {
+                throw new RuntimeException("Token exchange failed: " + response);
+            }
+
+            JSONObject tokenResp = new JSONObject(response);
+            accessToken = tokenResp.optString("access_token", null);
+            idToken = tokenResp.optString("id_token", null);
+
+            if (accessToken != null) {
+                fetchUserInfo();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // signal waiting thread regardless of success/failure
+            if (callbackLatch != null) {
+                callbackLatch.countDown();
+            }
+        }
+    }
+
+    private void fetchUserInfo() throws Exception {
+        String userInfoEndpoint = String.format("https://%s/oauth2/default/v1/userinfo", oktaDomain);
+        URL url = new URL(userInfoEndpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+        conn.setRequestProperty("Accept", "application/json");
+
+        int responseCode = conn.getResponseCode();
+        String response = readResponse(responseCode == 200 ? conn.getInputStream() : conn.getErrorStream());
+        if (responseCode != 200) {
+            throw new RuntimeException("Failed to get user info: " + response);
+        }
+
+        userInfo = new JSONObject(response);
+    }
+
+    private String readResponse(InputStream is) throws IOException {
+        if (is == null) return "";
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+            return sb.toString();
+        }
+    }
+
+    /**
+     * Logout flow:
+     *  - attempt to revoke access token (best-effort)
+     *  - call Okta end session endpoint in browser (id_token_hint) so SSO session ends
+     *  - wait a small period for callback (optional); using post_logout_redirect_uri if configured in app
+     */
+    public void logout() throws Exception {
+        // revoke token
+        if (accessToken != null) {
+            try {
+                revokeAccessToken();
+            } catch (Exception ex) {
+                System.out.println("Token revocation failed (non-fatal): " + ex.getMessage());
+            }
+        }
+
+        if (idToken != null) {
+            // construct logout URL
+            String logout = String.format(
+                    "https://%s/oauth2/default/v1/logout?id_token_hint=%s&post_logout_redirect_uri=%s",
+                    oktaDomain,
+                    URLEncoder.encode(idToken, StandardCharsets.UTF_8.toString()),
+                    URLEncoder.encode(redirectUri.replaceFirst("/callback$", "/logout-callback"), StandardCharsets.UTF_8.toString())
+            );
+
+            // start a temporary server to receive logout callback and auto-close browser (if desired)
+            startLogoutServerAndOpenBrowser(logout);
+        }
+
+        // clear tokens locally
+        accessToken = null;
+        idToken = null;
+        userInfo = null;
+
+        // generate fresh PKCE params for next auth
+        generatePKCEParameters();
+    }
+
+    private void revokeAccessToken() throws Exception {
+        if (accessToken == null) return;
+
+        String revokeEndpoint = String.format("https://%s/oauth2/default/v1/revoke", oktaDomain);
+        URL url = new URL(revokeEndpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setDoOutput(true);
+
+        String postData = String.format("token=%s&client_id=%s&token_type_hint=access_token",
+                URLEncoder.encode(accessToken, StandardCharsets.UTF_8.toString()),
+                URLEncoder.encode(clientId, StandardCharsets.UTF_8.toString())
+        );
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(postData.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200) {
+            System.out.println("Revoke token returned status: " + responseCode);
+        }
+    }
+
+    private void startLogoutServerAndOpenBrowser(String logoutUrl) throws IOException {
+        // Start logout-callback server (path /logout-callback expected)
+        stopServerIfRunning();
+
+        server = HttpServer.create(new InetSocketAddress(localPort), 0);
+        // use /logout-callback path
+        server.createContext("/logout-callback", new HttpHandler() {
+            @Override
+            public void handle(HttpExchange exchange) throws IOException {
+                // Send JS to close the browser window immediately
+                String resp = "<html><body><script>window.close();</script></body></html>";
+                exchange.getResponseHeaders().set("Content-Type", "text/html");
+                exchange.sendResponseHeaders(200, resp.getBytes(StandardCharsets.UTF_8).length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(resp.getBytes(StandardCharsets.UTF_8));
+                }
+                // stop server
+                new Thread(() -> {
+                    try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+                    stopServerIfRunning();
+                }).start();
+            }
+        });
+        server.setExecutor(null);
+        server.start();
+        System.out.println("Logout callback server started on port " + localPort);
+
+        // open browser to complete logout
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(URI.create(logoutUrl));
+            } else {
+                System.out.println("Open this URL to complete logout:\n" + logoutUrl);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Handler for the OAuth redirect/callback.
+     * Expected params: code and state (or error)
+     * After handling it will return a minimal page with JS that closes the tab.
+     */
+    private class CallbackHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String query = exchange.getRequestURI().getQuery();
+            Map<String, String> params = parseQuery(query);
+
+            String resp;
+            try {
+                if (params.containsKey("error")) {
+                    String err = params.get("error");
+                    System.err.println("Authentication error: " + err);
+                    resp = "<html><body><script>window.close();</script></body></html>";
+                } else if (params.containsKey("code") && params.containsKey("state")) {
+                    if (!state.equals(params.get("state"))) {
+                        System.err.println("State mismatch. Possible CSRF.");
+                        resp = "<html><body><script>window.close();</script></body></html>";
+                        if (callbackLatch != null) callbackLatch.countDown();
+                    } else {
+                        String code = params.get("code");
+                        // Exchange code for tokens (non-blocking)
+                        new Thread(() -> exchangeCodeForTokensAndFetchUserInfo(code)).start();
+                        resp = "<html><body><script>window.close();</script></body></html>";
+                    }
+                } else {
+                    resp = "<html><body><script>window.close();</script></body></html>";
+                    if (callbackLatch != null) callbackLatch.countDown();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                resp = "<html><body><script>window.close();</script></body></html>";
+                if (callbackLatch != null) callbackLatch.countDown();
+            }
+
+            exchange.getResponseHeaders().set("Content-Type", "text/html");
+            exchange.sendResponseHeaders(200, resp.getBytes(StandardCharsets.UTF_8).length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(resp.getBytes(StandardCharsets.UTF_8));
+            }
+        }
+    }
+
+    private Map<String, String> parseQuery(String query) {
+        Map<String, String> result = new HashMap<>();
+        if (query == null || query.isEmpty()) return result;
+        for (String pair : query.split("&")) {
+            String[] parts = pair.split("=", 2);
+            try {
+                String k = URLDecoder.decode(parts[0], StandardCharsets.UTF_8.toString());
+                String v = parts.length > 1 ? URLDecoder.decode(parts[1], StandardCharsets.UTF_8.toString()) : "";
+                result.put(k, v);
+            } catch (UnsupportedEncodingException ignored) {}
+        }
+        return result;
+    }
+}
+
+
+
+----------------
+
+import org.json.JSONObject;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.io.FileInputStream;
+import java.util.Properties;
+
+public class OktaSwingApp extends JFrame {
+    private JPanel mainPanel;
+    private JButton loginButton;
+    private JButton logoutButton;
+    private JTextArea userInfoArea;
+
+    private OktaAuthService authService;
+
+    public OktaSwingApp() {
+        initUI();
+        loadAuthService();
+    }
+
+    private void initUI() {
+        setTitle("Okta Integration (POC)");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(600, 420);
+        setLocationRelativeTo(null);
+
+        mainPanel = new JPanel(new BorderLayout());
+
+        JLabel title = new JLabel("Okta Authentication POC", SwingConstants.CENTER);
+        title.setFont(new Font("Arial", Font.BOLD, 20));
+        mainPanel.add(title, BorderLayout.NORTH);
+
+        userInfoArea = new JTextArea();
+        userInfoArea.setEditable(false);
+        userInfoArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane scroll = new JScrollPane(userInfoArea);
+        scroll.setPreferredSize(new Dimension(560, 260));
+        mainPanel.add(scroll, BorderLayout.CENTER);
+
+        JPanel btnPanel = new JPanel();
+        loginButton = new JButton("Login with Okta");
+        loginButton.addActionListener(this::onLogin);
+        logoutButton = new JButton("Logout");
+        logoutButton.addActionListener(this::onLogout);
+        logoutButton.setEnabled(false);
+
+        btnPanel.add(loginButton);
+        btnPanel.add(logoutButton);
+
+        mainPanel.add(btnPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+    }
+
+    private void loadAuthService() {
+        try {
+            Properties p = new Properties();
+            // Ensure okta.properties is in working dir or specify full path
+            p.load(new FileInputStream("okta.properties"));
+            authService = new OktaAuthService(p);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Failed to load Okta config: " + e.getMessage(), "Config error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void onLogin(ActionEvent evt) {
+        loginButton.setEnabled(false);
+        userInfoArea.setText("Starting authentication flow...\n");
+        new Thread(() -> {
+            try {
+                JSONObject profile = authService.authenticate();
+                SwingUtilities.invokeLater(() -> {
+                    displayUserInfo(profile);
+                    logoutButton.setEnabled(true);
+                    loginButton.setEnabled(false);
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this, "Authentication failed: " + e.getMessage(), "Auth error", JOptionPane.ERROR_MESSAGE);
+                    loginButton.setEnabled(true);
+                });
+            }
+        }).start();
+    }
+
+    private void onLogout(ActionEvent evt) {
+        logoutButton.setEnabled(false);
+        new Thread(() -> {
+            try {
+                authService.logout();
+                SwingUtilities.invokeLater(() -> {
+                    userInfoArea.setText("");
+                    JOptionPane.showMessageDialog(this, "Logged out (local tokens cleared). Okta SSO logout attempted in browser.");
+                    loginButton.setEnabled(true);
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this, "Logout failed: " + e.getMessage(), "Logout error", JOptionPane.ERROR_MESSAGE);
+                    loginButton.setEnabled(true);
+                });
+            }
+        }).start();
+    }
+
+    private void displayUserInfo(JSONObject profile) {
+        if (profile == null) {
+            userInfoArea.setText("No profile data.");
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("User Information:\n=================\n\n");
+        if (profile.has("name")) sb.append("Name: ").append(profile.optString("name")).append("\n");
+        if (profile.has("email")) sb.append("Email: ").append(profile.optString("email")).append("\n");
+        if (profile.has("preferred_username")) sb.append("Username: ").append(profile.optString("preferred_username")).append("\n");
+        if (profile.has("sub")) sb.append("Subject ID: ").append(profile.optString("sub")).append("\n");
+        sb.append("\nFull JSON:\n").append(profile.toString(2));
+        userInfoArea.setText(sb.toString());
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            OktaSwingApp app = new OktaSwingApp();
+            app.setVisible(true);
+        });
+    }
+}
+
+
+
+-----------------------
+
+# Okta POC configuration - replace values
+okta.domain=your-domain.okta.com
+okta.clientId=YOUR_CLIENT_ID
+okta.redirectUri=http://localhost:8080/callback
+okta.scopes=openid profile email
+
+--------------------
