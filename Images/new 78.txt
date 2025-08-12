@@ -1,0 +1,281 @@
+import os
+import requests
+import yaml
+from datetime import datetime
+
+# Global variables
+bt_domain = ""
+bt_api_key = ""
+bt_api_user = ""
+session = None
+
+def load_env_config():
+    """Load BeyondTrust credentials from .env file"""
+    global bt_domain, bt_api_key, bt_api_user
+    
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    if key == 'BEYONDTRUST_DOMAIN':
+                        bt_domain = value
+                    elif key == 'BEYONDTRUST_API_KEY':
+                        bt_api_key = value
+                    elif key == 'BEYONDTRUST_API_USER':
+                        bt_api_user = value
+    except Exception as e:
+        print(f"Error reading .env file: {e}")
+        return False
+    
+    if not bt_domain or not bt_api_key or not bt_api_user:
+        print("Error: Missing BeyondTrust configuration in .env file")
+        return False
+    
+    return True
+
+def load_yaml_config():
+    """Load folder configuration from YAML file"""
+    try:
+        with open('config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+            return config
+    except Exception as e:
+        print(f"Error reading config.yaml file: {e}")
+        return None
+
+def create_session():
+    """Create requests session"""
+    global session
+    session = requests.Session()
+    session.verify = "cacert.pem"  # or set to False to disable SSL verification
+
+def signin_bt():
+    """Sign in to BeyondTrust"""
+    print("Signing in to BeyondTrust...")
+    
+    headers = {
+        "Authorization": f"PS-Auth key={bt_api_key}; runas={bt_api_user};",
+        "Content-Type": "application/json"
+    }
+    session.headers.update(headers)
+    
+    url = f"https://{bt_domain}/BeyondTrust/api/public/v3/Auth/SignAppin"
+    
+    try:
+        response = session.post(url)
+        if response.status_code == 200:
+            print("Successfully signed in to BeyondTrust")
+            return True
+        else:
+            print(f"Sign in failed with status code: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Error during sign in: {e}")
+        return False
+
+def signout_bt():
+    """Sign out from BeyondTrust"""
+    print("Signing out from BeyondTrust...")
+    
+    url = f"https://{bt_domain}/BeyondTrust/api/public/v3/Auth/Signout"
+    
+    try:
+        response = session.post(url)
+        if response.status_code == 200:
+            print("Successfully signed out from BeyondTrust")
+        else:
+            print("Sign out failed")
+    except Exception as e:
+        print(f"Error during sign out: {e}")
+
+def get_secrets_from_folder(folder_id):
+    """Get all secrets from a folder"""
+    print(f"Getting secrets from folder: {folder_id}")
+    
+    url = f"https://{bt_domain}/BeyondTrust/api/public/v3/Secrets-Safe/Folders/{folder_id}/secrets"
+    
+    try:
+        response = session.get(url)
+        if response.status_code == 200:
+            secrets = response.json()
+            print(f"Found {len(secrets)} total secrets in folder")
+            
+            # Extract required fields and filter by OwnerType
+            secret_list = []
+            user_secrets = 0
+            group_secrets = 0
+            
+            for secret in secrets:
+                owner_type = secret.get('OwnerType')
+                
+                if owner_type == 'User':
+                    secret_info = {
+                        'Id': secret.get('Id'),
+                        'Username': secret.get('Username'),
+                        'Title': secret.get('Title'),
+                        'FolderId': secret.get('FolderId'),
+                        'OwnerType': owner_type
+                    }
+                    secret_list.append(secret_info)
+                    user_secrets += 1
+                elif owner_type == 'Group':
+                    group_secrets += 1
+                    print(f"Skipping secret '{secret.get('Title')}' - already has OwnerType: Group")
+            
+            print(f"Secrets with OwnerType 'User': {user_secrets}")
+            print(f"Secrets with OwnerType 'Group' (skipped): {group_secrets}")
+            
+            return secret_list
+        else:
+            print(f"Failed to get secrets. Status code: {response.status_code}")
+            return []
+    except Exception as e:
+        print(f"Error getting secrets from folder: {e}")
+        return []
+
+def get_secret_password(secret_id):
+    """Get password (text) from a secret"""
+    print(f"Getting password for secret ID: {secret_id}")
+    
+    url = f"https://{bt_domain}/BeyondTrust/api/public/v3/Secrets-Safe/Secrets/{secret_id}/text"
+    
+    try:
+        response = session.get(url)
+        if response.status_code == 200:
+            secret_data = response.json()
+            password = secret_data.get('Text', '')
+            print(f"Successfully got password for secret: {secret_id}")
+            return password
+        else:
+            print(f"Failed to get password. Status code: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error getting secret password: {e}")
+        return None
+
+def update_secret(secret_id, title, username, password, folder_id, owner_id):
+    """Update a secret with new data"""
+    print(f"Updating secret: {title}")
+    
+    headers = {
+        "Authorization": f"PS-Auth key={bt_api_key}; runas={bt_api_user};",
+        "Content-Type": "application/json"
+    }
+    session.headers.update(headers)
+    
+    # Request body as specified
+    request_body = {
+        "Title": title,
+        "Username": username,
+        "Password": password,
+        "FolderId": folder_id,
+        "OwnerId": owner_id,
+        "OwnerType": "Group"
+    }
+    
+    url = f"https://{bt_domain}/BeyondTrust/api/public/v3/Secrets-Safe/secrets/{secret_id}"
+    
+    try:
+        response = session.put(url, json=request_body)
+        if response.status_code in [200, 201, 204]:
+            print(f"Successfully updated secret: {title}")
+            return True
+        else:
+            print(f"Failed to update secret. Status code: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+    except Exception as e:
+        print(f"Error updating secret: {e}")
+        return False
+
+def main():
+    print("=== BeyondTrust Secret Updater ===")
+    print()
+
+    # Load environment configuration
+    if not load_env_config():
+        return
+
+    # Load YAML configuration
+    config = load_yaml_config()
+    if not config:
+        return
+
+    folder_id = config.get('folder_id')
+    owner_id = config.get('owner_id')
+
+    if not folder_id or not owner_id:
+        print("Error: Missing folder_id or owner_id in config.yaml")
+        return
+
+    print(f"Folder ID: {folder_id}")
+    print(f"Owner ID: {owner_id}")
+    print()
+
+    # Create session
+    create_session()
+
+    # Step 1: Sign in to BeyondTrust
+    if not signin_bt():
+        print("Cannot proceed without successful sign in")
+        return
+
+    try:
+        # Step 2: Get all secrets from folder
+        secrets = get_secrets_from_folder(folder_id)
+        
+        if not secrets:
+            print("No secrets with OwnerType 'User' found in folder")
+            return
+
+        print(f"Processing {len(secrets)} secrets with OwnerType 'User'...")
+        print("-" * 50)
+
+        success_count = 0
+        failed_count = 0
+
+        # Step 3, 4, 5: Process each secret (only OwnerType: User)
+        for secret in secrets:
+            secret_id = secret['Id']
+            title = secret['Title']
+            username = secret['Username']
+            secret_folder_id = secret['FolderId']
+            owner_type = secret['OwnerType']
+
+            print(f"\nProcessing: {title} (Username: {username}, OwnerType: {owner_type})")
+
+            # Step 3: Get current password
+            current_password = get_secret_password(secret_id)
+            
+            if current_password is None:
+                print(f"Failed to get password for {title}")
+                failed_count += 1
+                continue
+
+            # Step 4: Update the secret (converting from User to Group ownership)
+            # Note: In your case, you might want to modify the password here
+            # For now, we're just updating with the same password but changing OwnerType to Group
+            if update_secret(secret_id, title, username, current_password, secret_folder_id, owner_id):
+                success_count += 1
+                print(f"Successfully converted {title} from OwnerType 'User' to 'Group'")
+            else:
+                failed_count += 1
+
+        print()
+        print("=== SUMMARY ===")
+        print(f"Total secrets with OwnerType 'User' processed: {len(secrets)}")
+        print(f"Successfully updated (User -> Group): {success_count}")
+        print(f"Failed to update: {failed_count}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    finally:
+        # Step 6: Sign out
+        signout_bt()
+
+    print("Script completed.")
+
+if __name__ == "__main__":
+    main()
