@@ -1,0 +1,1089 @@
+package com.yourcompany.auth;
+
+import org.json.JSONObject;
+import java.awt.Desktop;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+
+/**
+ * Okta Authentication Service for Java Swing Applications
+ * This service handles OAuth 2.0 PKCE authentication flow with Okta
+ */
+public class OktaAuthenticationService {
+    
+    // Okta Configuration - Replace with your actual values
+    private final String OKTA_DOMAIN;
+    private final String CLIENT_ID;
+    private final String REDIRECT_URI = "http://localhost:8080/callback";
+    private final String LOGOUT_REDIRECT_URI = "http://localhost:8080/logout-callback";
+    private final String SCOPE = "openid profile email";
+    
+    // OAuth 2.0 PKCE variables
+    private String codeVerifier;
+    private String codeChallenge;
+    private String state;
+    private HttpServer server;
+    
+    // User session data
+    private JSONObject userInfo;
+    private String accessToken;
+    private String idToken;
+    private boolean isAuthenticated = false;
+    
+    // Callback interfaces
+    private AuthenticationCallback authCallback;
+    private LogoutCallback logoutCallback;
+    
+    /**
+     * Interface for handling authentication results
+     */
+    public interface AuthenticationCallback {
+        void onAuthenticationSuccess(JSONObject userInfo, String accessToken);
+        void onAuthenticationFailure(String error);
+    }
+    
+    /**
+     * Interface for handling logout results
+     */
+    public interface LogoutCallback {
+        void onLogoutComplete();
+        void onLogoutError(String error);
+    }
+    
+    /**
+     * Constructor
+     * @param oktaDomain Your Okta domain (e.g., "your-domain.okta.com")
+     * @param clientId Your Okta application client ID
+     */
+    public OktaAuthenticationService(String oktaDomain, String clientId) {
+        this.OKTA_DOMAIN = oktaDomain;
+        this.CLIENT_ID = clientId;
+        generatePKCEParameters();
+    }
+    
+    /**
+     * Start the authentication process
+     * @param callback Callback to handle authentication results
+     */
+    public void authenticate(AuthenticationCallback callback) {
+        this.authCallback = callback;
+        
+        try {
+            startLocalServer();
+            openAuthenticationBrowser();
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (callback != null) {
+                callback.onAuthenticationFailure("Error starting authentication: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Logout the current user
+     * @param callback Callback to handle logout results
+     */
+    public void logout(LogoutCallback callback) {
+        this.logoutCallback = callback;
+        
+        try {
+            // Revoke tokens first
+            if (accessToken != null) {
+                revokeToken();
+            }
+            
+            // Clear local session
+            clearSession();
+            
+            // End Okta SSO session if we have ID token
+            if (idToken != null) {
+                startLogoutServer();
+                openLogoutBrowser();
+            } else {
+                // No ID token, just complete logout locally
+                if (callback != null) {
+                    callback.onLogoutComplete();
+                }
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            clearSession(); // Clear local session anyway
+            if (callback != null) {
+                callback.onLogoutError("Logout error: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Get current user information
+     * @return JSONObject containing user info, or null if not authenticated
+     */
+    public JSONObject getUserInfo() {
+        return userInfo;
+    }
+    
+    /**
+     * Get current access token
+     * @return Access token string, or null if not authenticated
+     */
+    public String getAccessToken() {
+        return accessToken;
+    }
+    
+    /**
+     * Check if user is currently authenticated
+     * @return true if authenticated, false otherwise
+     */
+    public boolean isAuthenticated() {
+        return isAuthenticated;
+    }
+    
+    /**
+     * Get user's display name
+     * @return User's name or email, or "Unknown User" if not available
+     */
+    public String getUserDisplayName() {
+        if (userInfo == null) return "Unknown User";
+        
+        if (userInfo.has("name")) {
+            return userInfo.getString("name");
+        } else if (userInfo.has("email")) {
+            return userInfo.getString("email");
+        } else if (userInfo.has("preferred_username")) {
+            return userInfo.getString("preferred_username");
+        }
+        
+        return "Unknown User";
+    }
+    
+    private void generatePKCEParameters() {
+        try {
+            SecureRandom sr = new SecureRandom();
+            
+            // Generate code verifier
+            byte[] code = new byte[32];
+            sr.nextBytes(code);
+            codeVerifier = Base64.getUrlEncoder().withoutPadding().encodeToString(code);
+            
+            // Generate code challenge
+            byte[] bytes = codeVerifier.getBytes(StandardCharsets.US_ASCII);
+            MessageDigest md = MessageDigest.getInstance("SHA256");
+            md.update(bytes, 0, bytes.length);
+            byte[] digest = md.digest();
+            codeChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+            
+            // Generate state
+            byte[] stateBytes = new byte[16];
+            sr.nextBytes(stateBytes);
+            state = Base64.getUrlEncoder().withoutPadding().encodeToString(stateBytes);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void startLocalServer() throws IOException {
+        // Stop existing server if running
+        if (server != null) {
+            server.stop(0);
+        }
+        
+        server = HttpServer.create(new InetSocketAddress(8080), 0);
+        server.createContext("/callback", new AuthCallbackHandler());
+        server.setExecutor(null);
+        server.start();
+    }
+    
+    private void startLogoutServer() throws IOException {
+        // Stop existing server if running
+        if (server != null) {
+            server.stop(0);
+        }
+        
+        server = HttpServer.create(new InetSocketAddress(8080), 0);
+        server.createContext("/logout-callback", new LogoutCallbackHandler());
+        server.setExecutor(null);
+        server.start();
+    }
+    
+    private void openAuthenticationBrowser() throws Exception {
+        String authUrl = String.format(
+            "https://%s/oauth2/default/v1/authorize?" +
+            "client_id=%s&" +
+            "response_type=code&" +
+            "scope=%s&" +
+            "redirect_uri=%s&" +
+            "state=%s&" +
+            "code_challenge=%s&" +
+            "code_challenge_method=S256",
+            OKTA_DOMAIN,
+            URLEncoder.encode(CLIENT_ID, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(SCOPE, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(state, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(codeChallenge, StandardCharsets.UTF_8.toString())
+        );
+        
+        Desktop.getDesktop().browse(new URI(authUrl));
+    }
+    
+    private void openLogoutBrowser() throws Exception {
+        String logoutUrl = String.format(
+            "https://%s/oauth2/default/v1/logout?" +
+            "id_token_hint=%s&" +
+            "post_logout_redirect_uri=%s",
+            OKTA_DOMAIN,
+            URLEncoder.encode(idToken, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(LOGOUT_REDIRECT_URI, StandardCharsets.UTF_8.toString())
+        );
+        
+        Desktop.getDesktop().browse(new URI(logoutUrl));
+    }
+    
+    private class AuthCallbackHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String query = exchange.getRequestURI().getQuery();
+            Map<String, String> params = parseQuery(query);
+            
+            // Send minimal response and immediately close browser
+            sendMinimalResponse(exchange);
+            
+            // Stop server immediately
+            CompletableFuture.runAsync(() -> {
+                try {
+                    TimeUnit.MILLISECONDS.sleep(100); // Brief delay to ensure response is sent
+                    server.stop(0);
+                    server = null;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            
+            // Process authentication in background
+            CompletableFuture.runAsync(() -> {
+                if (params.containsKey("error")) {
+                    if (authCallback != null) {
+                        authCallback.onAuthenticationFailure("Authentication failed: " + params.get("error"));
+                    }
+                } else if (params.containsKey("code") && params.containsKey("state")) {
+                    if (state.equals(params.get("state"))) {
+                        try {
+                            String authCode = params.get("code");
+                            exchangeCodeForTokens(authCode);
+                            getUserInfo();
+                            
+                            isAuthenticated = true;
+                            if (authCallback != null) {
+                                authCallback.onAuthenticationSuccess(userInfo, accessToken);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            if (authCallback != null) {
+                                authCallback.onAuthenticationFailure("Error exchanging code for tokens: " + e.getMessage());
+                            }
+                        }
+                    } else {
+                        if (authCallback != null) {
+                            authCallback.onAuthenticationFailure("State parameter mismatch. Possible CSRF attack.");
+                        }
+                    }
+                } else {
+                    if (authCallback != null) {
+                        authCallback.onAuthenticationFailure("Invalid callback parameters");
+                    }
+                }
+            });
+        }
+    }
+    
+    private class LogoutCallbackHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            // Send minimal response and immediately close browser
+            sendMinimalResponse(exchange);
+            
+            // Stop server immediately
+            CompletableFuture.runAsync(() -> {
+                try {
+                    TimeUnit.MILLISECONDS.sleep(100); // Brief delay to ensure response is sent
+                    server.stop(0);
+                    server = null;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            
+            // Complete logout process
+            CompletableFuture.runAsync(() -> {
+                if (logoutCallback != null) {
+                    logoutCallback.onLogoutComplete();
+                }
+            });
+        }
+    }
+    
+    private void sendMinimalResponse(HttpExchange exchange) throws IOException {
+        // Send minimal response with auto-close script
+        String response = "<html><body><script>window.close();</script></body></html>";
+        
+        exchange.getResponseHeaders().set("Content-Type", "text/html");
+        exchange.sendResponseHeaders(200, response.length());
+        OutputStream os = exchange.getResponseBody();
+        os.write(response.getBytes());
+        os.close();
+    }
+    
+    private Map<String, String> parseQuery(String query) {
+        Map<String, String> result = new HashMap<>();
+        if (query != null) {
+            for (String param : query.split("&")) {
+                String[] entry = param.split("=");
+                if (entry.length > 1) {
+                    try {
+                        result.put(entry[0], URLDecoder.decode(entry[1], StandardCharsets.UTF_8.toString()));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        return result;
+    }
+    
+    private void exchangeCodeForTokens(String authCode) throws Exception {
+        URL url = new URL("https://" + OKTA_DOMAIN + "/oauth2/default/v1/token");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        
+        String postData = String.format(
+            "grant_type=authorization_code&" +
+            "client_id=%s&" +
+            "code=%s&" +
+            "redirect_uri=%s&" +
+            "code_verifier=%s",
+            URLEncoder.encode(CLIENT_ID, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(authCode, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(codeVerifier, StandardCharsets.UTF_8.toString())
+        );
+        
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(postData.getBytes(StandardCharsets.UTF_8));
+        }
+        
+        int responseCode = conn.getResponseCode();
+        if (responseCode == 200) {
+            String response = readResponse(conn.getInputStream());
+            JSONObject tokenResponse = new JSONObject(response);
+            accessToken = tokenResponse.getString("access_token");
+            
+            if (tokenResponse.has("id_token")) {
+                idToken = tokenResponse.getString("id_token");
+            }
+        } else {
+            String errorResponse = readResponse(conn.getErrorStream());
+            throw new Exception("Token exchange failed: " + errorResponse);
+        }
+    }
+    
+    private void getUserInfo() throws Exception {
+        URL url = new URL("https://" + OKTA_DOMAIN + "/oauth2/default/v1/userinfo");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+        conn.setRequestProperty("Accept", "application/json");
+        
+        int responseCode = conn.getResponseCode();
+        if (responseCode == 200) {
+            String response = readResponse(conn.getInputStream());
+            userInfo = new JSONObject(response);
+        } else {
+            String errorResponse = readResponse(conn.getErrorStream());
+            throw new Exception("Failed to get user info: " + errorResponse);
+        }
+    }
+    
+    private void revokeToken() throws Exception {
+        if (accessToken == null) return;
+        
+        URL url = new URL("https://" + OKTA_DOMAIN + "/oauth2/default/v1/revoke");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        
+        String postData = String.format(
+            "token=%s&" +
+            "client_id=%s&" +
+            "token_type_hint=access_token",
+            URLEncoder.encode(accessToken, StandardCharsets.UTF_8.toString()),
+            URLEncoder.encode(CLIENT_ID, StandardCharsets.UTF_8.toString())
+        );
+        
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(postData.getBytes(StandardCharsets.UTF_8));
+        }
+        
+        // Don't throw exception for revoke failures as it's not critical
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200) {
+            System.out.println("Token revocation returned status: " + responseCode);
+        }
+    }
+    
+    private String readResponse(InputStream inputStream) throws IOException {
+        StringBuilder response = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+        }
+        return response.toString();
+    }
+    
+    private void clearSession() {
+        userInfo = null;
+        accessToken = null;
+        idToken = null;
+        isAuthenticated = false;
+        generatePKCEParameters(); // Generate new parameters for next login
+    }
+}
+
+=====================================================
+
+package com.yourcompany.auth;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import org.json.JSONObject;
+
+/**
+ * Helper class to integrate Okta authentication into existing Java Swing applications
+ * This class provides UI components and handles authentication flow
+ */
+public class OktaSwingIntegration {
+    
+    private final OktaAuthenticationService authService;
+    private AuthenticationStateListener stateListener;
+    
+    // UI Components for integration
+    private JPanel authPanel;
+    private JButton loginButton;
+    private JButton logoutButton;
+    private JLabel userLabel;
+    private boolean isCompactMode = false;
+    
+    /**
+     * Interface for listening to authentication state changes
+     */
+    public interface AuthenticationStateListener {
+        void onUserLoggedIn(JSONObject userInfo);
+        void onUserLoggedOut();
+        void onAuthenticationError(String error);
+    }
+    
+    /**
+     * Constructor
+     * @param oktaDomain Your Okta domain
+     * @param clientId Your Okta client ID
+     */
+    public OktaSwingIntegration(String oktaDomain, String clientId) {
+        this.authService = new OktaAuthenticationService(oktaDomain, clientId);
+        initializeUI();
+    }
+    
+    /**
+     * Set listener for authentication state changes
+     * @param listener The listener to be notified of state changes
+     */
+    public void setAuthenticationStateListener(AuthenticationStateListener listener) {
+        this.stateListener = listener;
+    }
+    
+    /**
+     * Get the authentication panel to add to your application
+     * @return JPanel containing login/logout controls
+     */
+    public JPanel getAuthenticationPanel() {
+        return authPanel;
+    }
+    
+    /**
+     * Get compact authentication controls (just buttons without labels)
+     * @return JPanel with compact controls
+     */
+    public JPanel getCompactAuthenticationPanel() {
+        isCompactMode = true;
+        updateUI();
+        return authPanel;
+    }
+    
+    /**
+     * Get individual login button (for custom layouts)
+     * @return JButton for login
+     */
+    public JButton getLoginButton() {
+        return loginButton;
+    }
+    
+    /**
+     * Get individual logout button (for custom layouts)
+     * @return JButton for logout
+     */
+    public JButton getLogoutButton() {
+        return logoutButton;
+    }
+    
+    /**
+     * Get user info label (for custom layouts)
+     * @return JLabel showing current user
+     */
+    public JLabel getUserLabel() {
+        return userLabel;
+    }
+    
+    /**
+     * Check if user is authenticated
+     * @return true if authenticated
+     */
+    public boolean isUserAuthenticated() {
+        return authService.isAuthenticated();
+    }
+    
+    /**
+     * Get current user information
+     * @return JSONObject with user data, or null if not authenticated
+     */
+    public JSONObject getCurrentUser() {
+        return authService.getUserInfo();
+    }
+    
+    /**
+     * Get current access token for API calls
+     * @return Access token string, or null if not authenticated
+     */
+    public String getAccessToken() {
+        return authService.getAccessToken();
+    }
+    
+    /**
+     * Manually trigger login (useful for menu items or custom buttons)
+     */
+    public void triggerLogin() {
+        performLogin();
+    }
+    
+    /**
+     * Manually trigger logout (useful for menu items or custom buttons)
+     */
+    public void triggerLogout() {
+        performLogout();
+    }
+    
+    /**
+     * Update UI theme/style
+     * @param buttonFont Font for buttons
+     * @param labelFont Font for labels
+     */
+    public void updateTheme(Font buttonFont, Font labelFont) {
+        if (buttonFont != null) {
+            loginButton.setFont(buttonFont);
+            logoutButton.setFont(buttonFont);
+        }
+        if (labelFont != null) {
+            userLabel.setFont(labelFont);
+        }
+    }
+    
+    private void initializeUI() {
+        authPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        // Login button
+        loginButton = new JButton("Login with Okta");
+        loginButton.addActionListener(e -> performLogin());
+        
+        // Logout button
+        logoutButton = new JButton("Logout");
+        logoutButton.addActionListener(e -> performLogout());
+        logoutButton.setVisible(false);
+        
+        // User label
+        userLabel = new JLabel("Not logged in");
+        userLabel.setForeground(Color.GRAY);
+        
+        authPanel.add(loginButton);
+        authPanel.add(logoutButton);
+        authPanel.add(userLabel);
+    }
+    
+    private void updateUI() {
+        authPanel.removeAll();
+        
+        if (isCompactMode) {
+            // Compact mode - just buttons
+            authPanel.add(loginButton);
+            authPanel.add(logoutButton);
+        } else {
+            // Full mode - buttons and label
+            authPanel.add(loginButton);
+            authPanel.add(logoutButton);
+            authPanel.add(userLabel);
+        }
+        
+        authPanel.revalidate();
+        authPanel.repaint();
+    }
+    
+    private void performLogin() {
+        loginButton.setEnabled(false);
+        loginButton.setText("Logging in...");
+        
+        authService.authenticate(new OktaAuthenticationService.AuthenticationCallback() {
+            @Override
+            public void onAuthenticationSuccess(JSONObject userInfo, String accessToken) {
+                SwingUtilities.invokeLater(() -> {
+                    loginButton.setVisible(false);
+                    logoutButton.setVisible(true);
+                    userLabel.setText("Welcome, " + authService.getUserDisplayName());
+                    userLabel.setForeground(Color.BLACK);
+                    
+                    authPanel.revalidate();
+                    authPanel.repaint();
+                    
+                    if (stateListener != null) {
+                        stateListener.onUserLoggedIn(userInfo);
+                    }
+                    
+                    // Show success message
+                    JOptionPane.showMessageDialog(authPanel.getTopLevelAncestor(), 
+                        "Successfully logged in as " + authService.getUserDisplayName(), 
+                        "Login Success", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                });
+            }
+            
+            @Override
+            public void onAuthenticationFailure(String error) {
+                SwingUtilities.invokeLater(() -> {
+                    loginButton.setEnabled(true);
+                    loginButton.setText("Login with Okta");
+                    
+                    if (stateListener != null) {
+                        stateListener.onAuthenticationError(error);
+                    }
+                    
+                    JOptionPane.showMessageDialog(authPanel.getTopLevelAncestor(), 
+                        "Authentication failed: " + error, 
+                        "Login Error", 
+                        JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        });
+    }
+    
+    private void performLogout() {
+        logoutButton.setEnabled(false);
+        logoutButton.setText("Logging out...");
+        
+        authService.logout(new OktaAuthenticationService.LogoutCallback() {
+            @Override
+            public void onLogoutComplete() {
+                SwingUtilities.invokeLater(() -> {
+                    logoutButton.setVisible(false);
+                    logoutButton.setEnabled(true);
+                    logoutButton.setText("Logout");
+                    
+                    loginButton.setVisible(true);
+                    loginButton.setEnabled(true);
+                    loginButton.setText("Login with Okta");
+                    
+                    userLabel.setText("Not logged in");
+                    userLabel.setForeground(Color.GRAY);
+                    
+                    authPanel.revalidate();
+                    authPanel.repaint();
+                    
+                    if (stateListener != null) {
+                        stateListener.onUserLoggedOut();
+                    }
+                    
+                    JOptionPane.showMessageDialog(authPanel.getTopLevelAncestor(), 
+                        "Successfully logged out!", 
+                        "Logout Success", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                });
+            }
+            
+            @Override
+            public void onLogoutError(String error) {
+                SwingUtilities.invokeLater(() -> {
+                    // Even on logout error, clear the local session
+                    logoutButton.setVisible(false);
+                    logoutButton.setEnabled(true);
+                    logoutButton.setText("Logout");
+                    
+                    loginButton.setVisible(true);
+                    loginButton.setEnabled(true);
+                    loginButton.setText("Login with Okta");
+                    
+                    userLabel.setText("Not logged in");
+                    userLabel.setForeground(Color.GRAY);
+                    
+                    authPanel.revalidate();
+                    authPanel.repaint();
+                    
+                    if (stateListener != null) {
+                        stateListener.onUserLoggedOut();
+                    }
+                    
+                    JOptionPane.showMessageDialog(authPanel.getTopLevelAncestor(), 
+                        "Logged out locally. Okta session may still be active.\nError: " + error, 
+                        "Logout Warning", 
+                        JOptionPane.WARNING_MESSAGE);
+                });
+            }
+        });
+    }
+}
+
+============================================================
+
+package com.yourcompany.demo;
+
+import com.yourcompany.auth.OktaSwingIntegration;
+import org.json.JSONObject;
+
+import javax.swing.*;
+import java.awt.*;
+
+/**
+ * Demo application showing how to integrate Okta authentication
+ * into an existing Java Swing application
+ */
+public class OktaIntegrationDemo extends JFrame {
+    
+    // Okta Configuration - Replace with your actual values
+    private static final String OKTA_DOMAIN = "your-domain.okta.com"; 
+    private static final String CLIENT_ID = "your-client-id"; 
+    
+    private OktaSwingIntegration oktaIntegration;
+    private JTextArea contentArea;
+    private JMenuBar menuBar;
+    private JMenuItem loginItem;
+    private JMenuItem logoutItem;
+    private JMenuItem profileItem;
+    
+    public OktaIntegrationDemo() {
+        initializeOktaIntegration();
+        initializeUI();
+        setupAuthenticationListener();
+    }
+    
+    private void initializeOktaIntegration() {
+        // Initialize Okta integration
+        oktaIntegration = new OktaSwingIntegration(OKTA_DOMAIN, CLIENT_ID);
+    }
+    
+    private void initializeUI() {
+        setTitle("My Company Application - With Okta Integration");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(800, 600);
+        setLocationRelativeTo(null);
+        
+        // Create menu bar with Okta integration
+        createMenuBar();
+        
+        // Main content area
+        contentArea = new JTextArea();
+        contentArea.setEditable(false);
+        contentArea.setFont(new Font("Arial", Font.PLAIN, 14));
+        contentArea.setText("Welcome to the application!\n\nPlease log in to access features.");
+        
+        JScrollPane scrollPane = new JScrollPane(contentArea);
+        scrollPane.setBorder(BorderFactory.createTitledBorder("Application Content"));
+        
+        // Create toolbar with Okta authentication panel
+        JPanel toolbar = new JPanel(new BorderLayout());
+        toolbar.setBorder(BorderFactory.createEtchedBorder());
+        
+        // Add company logo/title
+        JLabel titleLabel = new JLabel("My Company App", JLabel.LEFT);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        
+        // Add Okta authentication panel to toolbar
+        JPanel authPanel = oktaIntegration.getAuthenticationPanel();
+        authPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        
+        toolbar.add(titleLabel, BorderLayout.WEST);
+        toolbar.add(authPanel, BorderLayout.EAST);
+        
+        // Layout
+        add(toolbar, BorderLayout.NORTH);
+        add(scrollPane, BorderLayout.CENTER);
+        
+        // Initially disable content area
+        updateUIForAuthenticationState(false);
+    }
+    
+    private void createMenuBar() {
+        menuBar = new JMenuBar();
+        
+        // File menu
+        JMenu fileMenu = new JMenu("File");
+        JMenuItem newItem = new JMenuItem("New");
+        JMenuItem openItem = new JMenuItem("Open");
+        JMenuItem saveItem = new JMenuItem("Save");
+        JMenuItem exitItem = new JMenuItem("Exit");
+        
+        exitItem.addActionListener(e -> System.exit(0));
+        
+        fileMenu.add(newItem);
+        fileMenu.add(openItem);
+        fileMenu.add(saveItem);
+        fileMenu.addSeparator();
+        fileMenu.add(exitItem);
+        
+        // User menu (with Okta integration)
+        JMenu userMenu = new JMenu("User");
+        loginItem = new JMenuItem("Login");
+        logoutItem = new JMenuItem("Logout");
+        profileItem = new JMenuItem("Profile");
+        
+        // Connect menu items to Okta integration
+        loginItem.addActionListener(e -> oktaIntegration.triggerLogin());
+        logoutItem.addActionListener(e -> oktaIntegration.triggerLogout());
+        profileItem.addActionListener(e -> showUserProfile());
+        
+        userMenu.add(loginItem);
+        userMenu.add(logoutItem);
+        userMenu.addSeparator();
+        userMenu.add(profileItem);
+        
+        // Tools menu
+        JMenu toolsMenu = new JMenu("Tools");
+        JMenuItem settingsItem = new JMenuItem("Settings");
+        JMenuItem reportsItem = new JMenuItem("Reports");
+        JMenuItem dataItem = new JMenuItem("Data Export");
+        
+        toolsMenu.add(settingsItem);
+        toolsMenu.add(reportsItem);
+        toolsMenu.add(dataItem);
+        
+        // Help menu
+        JMenu helpMenu = new JMenu("Help");
+        JMenuItem aboutItem = new JMenuItem("About");
+        JMenuItem helpItem = new JMenuItem("Help");
+        
+        aboutItem.addActionListener(e -> showAbout());
+        helpItem.addActionListener(e -> showHelp());
+        
+        helpMenu.add(helpItem);
+        helpMenu.addSeparator();
+        helpMenu.add(aboutItem);
+        
+        menuBar.add(fileMenu);
+        menuBar.add(userMenu);
+        menuBar.add(toolsMenu);
+        menuBar.add(helpMenu);
+        
+        setJMenuBar(menuBar);
+        
+        // Initially set menu states
+        updateMenuForAuthenticationState(false);
+    }
+    
+    private void setupAuthenticationListener() {
+        oktaIntegration.setAuthenticationStateListener(new OktaSwingIntegration.AuthenticationStateListener() {
+            @Override
+            public void onUserLoggedIn(JSONObject userInfo) {
+                updateUIForAuthenticationState(true);
+                updateMenuForAuthenticationState(true);
+                
+                // Update content area with user-specific content
+                StringBuilder content = new StringBuilder();
+                content.append("Welcome back, ").append(getUserDisplayName(userInfo)).append("!\n\n");
+                content.append("You are now authenticated and can access all features.\n\n");
+                content.append("User Information:\n");
+                content.append("- Name: ").append(userInfo.optString("name", "N/A")).append("\n");
+                content.append("- Email: ").append(userInfo.optString("email", "N/A")).append("\n");
+                content.append("- Username: ").append(userInfo.optString("preferred_username", "N/A")).append("\n");
+                content.append("- Subject: ").append(userInfo.optString("sub", "N/A")).append("\n\n");
+                content.append("Access Token Available: ").append(oktaIntegration.getAccessToken() != null ? "Yes" : "No");
+                
+                contentArea.setText(content.toString());
+            }
+            
+            @Override
+            public void onUserLoggedOut() {
+                updateUIForAuthenticationState(false);
+                updateMenuForAuthenticationState(false);
+                
+                contentArea.setText("Welcome to the application!\n\nPlease log in to access features.");
+            }
+            
+            @Override
+            public void onAuthenticationError(String error) {
+                updateUIForAuthenticationState(false);
+                updateMenuForAuthenticationState(false);
+                
+                contentArea.setText("Authentication Error:\n\n" + error + "\n\nPlease try logging in again.");
+            }
+        });
+    }
+    
+    private void updateUIForAuthenticationState(boolean authenticated) {
+        if (authenticated) {
+            contentArea.setBackground(Color.WHITE);
+            contentArea.setForeground(Color.BLACK);
+        } else {
+            contentArea.setBackground(new Color(245, 245, 245));
+            contentArea.setForeground(Color.GRAY);
+        }
+    }
+    
+    private void updateMenuForAuthenticationState(boolean authenticated) {
+        loginItem.setEnabled(!authenticated);
+        logoutItem.setEnabled(authenticated);
+        profileItem.setEnabled(authenticated);
+    }
+    
+    private void showUserProfile() {
+        if (!oktaIntegration.isUserAuthenticated()) {
+            JOptionPane.showMessageDialog(this, 
+                "Please log in to view your profile.", 
+                "Not Authenticated", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        JSONObject userInfo = oktaIntegration.getCurrentUser();
+        if (userInfo == null) {
+            JOptionPane.showMessageDialog(this, 
+                "Unable to retrieve user information.", 
+                "Error", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Create a dialog to show user profile
+        JDialog profileDialog = new JDialog(this, "User Profile", true);
+        profileDialog.setSize(400, 300);
+        profileDialog.setLocationRelativeTo(this);
+        
+        JPanel profilePanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 10, 5, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+        
+        // Add profile fields
+        addProfileField(profilePanel, gbc, 0, "Name:", userInfo.optString("name", "N/A"));
+        addProfileField(profilePanel, gbc, 1, "Email:", userInfo.optString("email", "N/A"));
+        addProfileField(profilePanel, gbc, 2, "Username:", userInfo.optString("preferred_username", "N/A"));
+        addProfileField(profilePanel, gbc, 3, "Subject ID:", userInfo.optString("sub", "N/A"));
+        
+        // Close button
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JButton closeButton = new JButton("Close");
+        closeButton.addActionListener(e -> profileDialog.dispose());
+        profilePanel.add(closeButton, gbc);
+        
+        profileDialog.add(profilePanel);
+        profileDialog.setVisible(true);
+    }
+    
+    private void addProfileField(JPanel panel, GridBagConstraints gbc, int row, String label, String value) {
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        panel.add(new JLabel(label), gbc);
+        
+        gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        JTextField field = new JTextField(value);
+        field.setEditable(false);
+        field.setBackground(Color.WHITE);
+        panel.add(field, gbc);
+        gbc.weightx = 0;
+    }
+    
+    private void showAbout() {
+        JOptionPane.showMessageDialog(this,
+            "My Company Application v1.0\n\n" +
+            "This application demonstrates integration with Okta\n" +
+            "for secure authentication and user management.\n\n" +
+            "Built with Java Swing and Okta OAuth 2.0",
+            "About",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private void showHelp() {
+        JOptionPane.showMessageDialog(this,
+            "Help - Getting Started:\n\n" +
+            "1. Click 'Login with Okta' to authenticate\n" +
+            "2. You'll be redirected to your browser to log in\n" +
+            "3. After successful login, return to the application\n" +
+            "4. Access user features through the menu or toolbar\n" +
+            "5. Click 'Logout' when you're done\n\n" +
+            "For technical support, contact your administrator.",
+            "Help",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private String getUserDisplayName(JSONObject userInfo) {
+        if (userInfo.has("name")) {
+            return userInfo.getString("name");
+        } else if (userInfo.has("email")) {
+            return userInfo.getString("email");
+        } else if (userInfo.has("preferred_username")) {
+            return userInfo.getString("preferred_username");
+        }
+        return "Unknown User";
+    }
+    
+    /**
+     * Main method to run the demo application
+     */
+    public static void main(String[] args) {
+        // Set look and feel to system default
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeel());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        // Create and show the application
+        SwingUtilities.invokeLater(() -> {
+            new OktaIntegrationDemo().setVisible(true);
+        });
+    }
+}
