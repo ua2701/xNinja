@@ -1,0 +1,11 @@
+Venafi went live on Friday and everything is running fine.
+
+For Jenkins, all instances are already configured in Okta, the Terraform files are ready, and metadata has been shared with the app owners. Out of 19 instances, 3 are live. For the ones Kym reached out to, we’ve got confirmation on 6 — we’ll check in their Terraform files, and we’re still waiting to hear back from the rest.
+
+On Automation Anywhere, the vendor is still working on the Invalid IDP Response issue and hasn’t come back with an update yet.
+
+For SnapComms, the app is configured in Okta but SSO isn’t working since no users are in the app store. We’ve asked for a vendor meeting, which is scheduled for Sept 7th.
+
+UPS CampusShip is pending MFA rollout from the app team, and they’ve given an ETA of Q3.
+
+For Infoblox, the go-live was planned for Sunday but the app team postponed it to Sept 7th since there weren’t users available to test over the weekend and they also had another PROD deployment going on.
