@@ -1,0 +1,208 @@
+import pandas as pd
+
+def load_csv_files():
+    """
+    Load all three CSV files into pandas DataFrames
+    Returns: tuple of DataFrames (wd_df, all_user_df, salesforce_df)
+    """
+    print("Loading CSV files...")
+    
+    # Load the CSV files
+    wd_df = pd.read_csv('WD_File.csv')
+    all_user_df = pd.read_csv('All_User_File.csv')
+    salesforce_df = pd.read_csv('Salesforce_File.csv')
+    
+    print(f"WD_File loaded: {len(wd_df)} records")
+    print(f"All_User_File loaded: {len(all_user_df)} records")
+    print(f"Salesforce_File loaded: {len(salesforce_df)} records")
+    
+    return wd_df, all_user_df, salesforce_df
+
+def compare_salesforce_with_all_users(all_user_df, salesforce_df):
+    """
+    Compare Salesforce users with All_User_File based on USER_ID and SalesforceUser_Alias
+    Returns: tuple of DataFrames (existing_users, non_existing_users)
+    """
+    print("\nComparing Salesforce users with All_User_File...")
+    
+    # Get unique SalesforceUser_Alias from Salesforce_File
+    salesforce_users = salesforce_df['SalesforceUser_Alias'].unique()
+    
+    # Find users that exist in All_User_File
+    existing_users = all_user_df[all_user_df['USER_ID'].isin(salesforce_users)]
+    
+    # Find users that don't exist in All_User_File
+    existing_user_ids = existing_users['USER_ID'].tolist()
+    non_existing_users = [user for user in salesforce_users if user not in existing_user_ids]
+    
+    print(f"Users found in both files: {len(existing_users)}")
+    print(f"Users not found in All_User_File: {len(non_existing_users)}")
+    
+    return existing_users, non_existing_users
+
+def display_existing_users(existing_users):
+    """
+    Display users that exist in both files with required columns
+    """
+    print("\n=== USERS THAT EXIST IN BOTH FILES ===")
+    required_columns = ['USER_ID', 'EMAIL', 'USER_TYPE', 'ORGANIZATION', 'COST_CENTER', 'MANAGER']
+    
+    if len(existing_users) > 0:
+        display_data = existing_users[required_columns]
+        print(display_data.to_string(index=False))
+    else:
+        print("No matching users found.")
+
+def display_non_existing_users(non_existing_users):
+    """
+    Display users that don't exist in All_User_File
+    """
+    print("\n=== USERS THAT DO NOT EXIST IN All_User_File ===")
+    if non_existing_users:
+        for user in non_existing_users:
+            print(f"{user} - Does not exist in All_User_File")
+    else:
+        print("All users exist in All_User_File.")
+
+def fetch_wd_data_for_employees(existing_users, wd_df):
+    """
+    Fetch Functional_Business_Unit and Job_Family from WD_File for employees
+    """
+    print("\nProcessing Employee data from WD_File...")
+    
+    # Create a copy to avoid modifying original data
+    updated_users = existing_users.copy()
+    
+    # Initialize new columns
+    updated_users['Functional_Business_Unit'] = ''
+    updated_users['Job_Family'] = ''
+    
+    # Process each user
+    for index, row in updated_users.iterrows():
+        user_id = row['USER_ID']
+        user_type = row['USER_TYPE']
+        
+        if user_type == 'Employee':
+            # Find matching record in WD_File based on User_Name
+            wd_match = wd_df[wd_df['User_Name'] == user_id]
+            
+            if not wd_match.empty:
+                # Get the first match
+                wd_record = wd_match.iloc[0]
+                updated_users.at[index, 'Functional_Business_Unit'] = wd_record['Functional_Business_Unit']
+                updated_users.at[index, 'Job_Family'] = wd_record['Job_Family']
+                print(f"Updated Employee: {user_id}")
+            else:
+                print(f"No WD data found for Employee: {user_id}")
+    
+    return updated_users
+
+def fetch_wd_data_for_contractors(updated_users, wd_df):
+    """
+    Fetch Functional_Business_Unit and Job_Family from WD_File for contractors/temp users
+    based on their manager's data
+    """
+    print("\nProcessing Contractor/Temp User data from WD_File...")
+    
+    # Process each user
+    for index, row in updated_users.iterrows():
+        user_id = row['USER_ID']
+        user_type = row['USER_TYPE']
+        manager = row['MANAGER']
+        
+        if user_type == 'Contractor/Temp User':
+            # Find matching record in WD_File based on manager's Full_Legal_Name
+            wd_match = wd_df[wd_df['Full_Legal_Name'] == manager]
+            
+            if not wd_match.empty:
+                # Get the first match
+                wd_record = wd_match.iloc[0]
+                updated_users.at[index, 'Functional_Business_Unit'] = wd_record['Functional_Business_Unit']
+                updated_users.at[index, 'Job_Family'] = wd_record['Job_Family']
+                print(f"Updated Contractor/Temp User: {user_id} (Manager: {manager})")
+            else:
+                print(f"No WD data found for Manager: {manager} (User: {user_id})")
+    
+    return updated_users
+
+def create_final_csv(updated_users):
+    """
+    Create final CSV file with required column order
+    """
+    print("\nCreating final CSV file...")
+    
+    # Define the required column order
+    final_columns = [
+        'USER_ID', 
+        'EMAIL', 
+        'USER_TYPE', 
+        'Functional_Business_Unit', 
+        'Job_Family', 
+        'ORGANIZATION', 
+        'COST_CENTER', 
+        'MANAGER'
+    ]
+    
+    # Select and reorder columns
+    final_data = updated_users[final_columns]
+    
+    # Save to CSV file
+    output_filename = 'final_user_data.csv'
+    final_data.to_csv(output_filename, index=False)
+    
+    print(f"Final data saved to: {output_filename}")
+    print(f"Total records in final file: {len(final_data)}")
+    
+    return final_data
+
+def main():
+    """
+    Main function to execute the entire process
+    """
+    print("Starting CSV Data Analysis and Merging Process...")
+    print("=" * 50)
+    
+    try:
+        # Step 1: Load all CSV files
+        wd_df, all_user_df, salesforce_df = load_csv_files()
+        
+        # Step 2: Compare Salesforce users with All_User_File
+        existing_users, non_existing_users = compare_salesforce_with_all_users(all_user_df, salesforce_df)
+        
+        # Step 3: Display existing users
+        display_existing_users(existing_users)
+        
+        # Step 4: Display non-existing users
+        display_non_existing_users(non_existing_users)
+        
+        # Step 5a: Fetch WD data for employees
+        updated_users = fetch_wd_data_for_employees(existing_users, wd_df)
+        
+        # Step 5b: Fetch WD data for contractors/temp users
+        updated_users = fetch_wd_data_for_contractors(updated_users, wd_df)
+        
+        # Step 6: Create final CSV file
+        final_data = create_final_csv(updated_users)
+        
+        print("\n" + "=" * 50)
+        print("Process completed successfully!")
+        print("Check the 'final_user_data.csv' file for results.")
+        
+        # Display sample of final data
+        print("\nSample of final data:")
+        print(final_data.head().to_string(index=False))
+        
+    except FileNotFoundError as e:
+        print(f"Error: CSV file not found - {e}")
+        print("Please make sure all three CSV files are in the same directory as this script.")
+    
+    except KeyError as e:
+        print(f"Error: Required column not found - {e}")
+        print("Please check that all required columns exist in the CSV files.")
+    
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+# Execute the main function when script is run
+if __name__ == "__main__":
+    main()
