@@ -321,4 +321,299 @@ elif user_type == "Contractor/Temp User":
     else:
         print(f"No match found for Manager: {manager_name}")
 
+=============================
+
+Claude:
+import pandas as pd
+import numpy as np
+
+def load_csv_files():
+    """
+    Load all three CSV files into pandas DataFrames
+    Returns: tuple of three DataFrames (wd_file, all_user_file, salesforce_file)
+    """
+    try:
+        # Load the CSV files
+        wd_file = pd.read_csv('WD_File.csv')
+        all_user_file = pd.read_csv('All_User_File.csv')
+        salesforce_file = pd.read_csv('Salesforce_File.csv')
+        
+        print("All CSV files loaded successfully!")
+        return wd_file, all_user_file, salesforce_file
+    
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Please make sure all CSV files are in the same directory as this script.")
+        return None, None, None
+
+def normalize_column_data(df, column_name):
+    """
+    Convert column data to lowercase and strip whitespace for case-insensitive comparison
+    """
+    if column_name in df.columns:
+        df[column_name] = df[column_name].astype(str).str.lower().str.strip()
+    return df
+
+def compare_users(salesforce_file, all_user_file):
+    """
+    Compare users between Salesforce_File and All_User_File
+    Returns: tuple of (existing_users_df, non_existing_users_list)
+    """
+    # Make copies to avoid modifying original data
+    sf_copy = salesforce_file.copy()
+    au_copy = all_user_file.copy()
+    
+    # Normalize the comparison columns for case-insensitive matching
+    sf_copy = normalize_column_data(sf_copy, 'SalesforceUser_Alias')
+    au_copy = normalize_column_data(au_copy, 'USER_ID')
+    
+    # Get unique users from Salesforce file
+    sf_users = sf_copy['SalesforceUser_Alias'].unique()
+    
+    # Find existing and non-existing users
+    existing_users = []
+    non_existing_users = []
+    
+    for user in sf_users:
+        if user in au_copy['USER_ID'].values:
+            existing_users.append(user)
+        else:
+            non_existing_users.append(user)
+    
+    # Get data for existing users from All_User_File
+    existing_users_df = all_user_file[all_user_file['USER_ID'].str.lower().str.strip().isin(existing_users)]
+    
+    return existing_users_df, non_existing_users
+
+def get_wd_data_for_employee(wd_file, user_id):
+    """
+    Get Functional_Business_Unit and Job_Family for Employee from WD_File
+    """
+    # Normalize for comparison
+    wd_normalized = wd_file.copy()
+    wd_normalized = normalize_column_data(wd_normalized, 'User_Name')
+    
+    # Find matching record
+    match = wd_normalized[wd_normalized['User_Name'] == user_id.lower().strip()]
+    
+    if not match.empty:
+        return match.iloc[0]['Functional_Business_Unit'], match.iloc[0]['Job_Family']
+    else:
+        return 'Not Found in WD_File', 'Not Found in WD_File'
+
+def get_wd_data_for_contractor(wd_file, manager_name):
+    """
+    Get Functional_Business_Unit and Job_Family for Contractor based on Manager's data
+    """
+    # Normalize for comparison
+    wd_normalized = wd_file.copy()
+    wd_normalized = normalize_column_data(wd_normalized, 'Worker')
+    
+    # Find matching manager record
+    match = wd_normalized[wd_normalized['Worker'] == manager_name.lower().strip()]
+    
+    if not match.empty:
+        return match.iloc[0]['Functional_Business_Unit'], match.iloc[0]['Job_Family']
+    else:
+        return 'Manager Not Found in WD_File', 'Manager Not Found in WD_File'
+
+def enrich_user_data(existing_users_df, wd_file):
+    """
+    Enrich user data with Functional_Business_Unit and Job_Family based on USER_TYPE
+    """
+    enriched_data = []
+    
+    for index, row in existing_users_df.iterrows():
+        user_id = row['USER_ID']
+        email = row['EMAIL']
+        user_type = row['USER_TYPE']
+        organization = row['ORGANIZATION']
+        cost_center = row['COST_CENTER']
+        manager = row['MANAGER']
+        
+        # Determine how to get WD data based on USER_TYPE
+        if user_type.lower().strip() == 'employee':
+            # For Employee: use USER_ID to match with User_Name in WD_File
+            functional_unit, job_family = get_wd_data_for_employee(wd_file, user_id)
+        elif user_type.lower().strip() in ['contractor', 'temp user', 'contractor/temp user']:
+            # For Contractor/Temp User: use MANAGER to get data from WD_File
+            functional_unit, job_family = get_wd_data_for_contractor(wd_file, manager)
+        else:
+            # Handle any other user types
+            functional_unit = 'Unknown User Type'
+            job_family = 'Unknown User Type'
+        
+        # Append enriched data
+        enriched_data.append({
+            'USER_ID': user_id,
+            'EMAIL': email,
+            'USER_TYPE': user_type,
+            'Functional_Business_Unit': functional_unit,
+            'Job_Family': job_family,
+            'COST_CENTER': cost_center,
+            'ORGANIZATION': organization,
+            'MANAGER': manager
+        })
+    
+    return pd.DataFrame(enriched_data)
+
+def save_final_report(final_df, non_existing_users):
+    """
+    Save the final report to CSV file and display summary
+    """
+    # Save to CSV with the specified column order
+    final_df.to_csv('Final_User_Report.csv', index=False)
+    
+    print("\n" + "="*60)
+    print("FINAL REPORT SUMMARY")
+    print("="*60)
+    
+    print(f"\n1. USERS THAT EXIST IN BOTH FILES ({len(final_df)} users):")
+    print("-" * 50)
+    print(final_df.to_string(index=False))
+    
+    print(f"\n2. USERS THAT DO NOT EXIST IN All_User_File ({len(non_existing_users)} users):")
+    print("-" * 50)
+    for user in non_existing_users:
+        print(f"   - {user} (does not exist in All_User_File)")
+    
+    print(f"\n3. Final report saved as 'Final_User_Report.csv'")
+    print("="*60)
+
+def main():
+    """
+    Main function to execute the complete workflow
+    """
+    print("Starting CSV Data Comparison and Merging Process...")
+    print("="*60)
+    
+    # Step 1: Load CSV files
+    wd_file, all_user_file, salesforce_file = load_csv_files()
+    
+    if wd_file is None:
+        return
+    
+    # Step 2: Compare users between Salesforce and All_User files
+    print("\nComparing users between Salesforce_File and All_User_File...")
+    existing_users_df, non_existing_users = compare_users(salesforce_file, all_user_file)
+    
+    # Step 3: Display initial results
+    print(f"\nFound {len(existing_users_df)} existing users and {len(non_existing_users)} non-existing users.")
+    
+    # Step 4: Enrich existing users with WD data
+    print("\nEnriching user data with WD information...")
+    final_df = enrich_user_data(existing_users_df, wd_file)
+    
+    # Step 5: Save and display final report
+    save_final_report(final_df, non_existing_users)
+
+# Execute the main function
+if __name__ == "__main__":
+    main()
+
+=================
+
+GPT:
+import pandas as pd
+
+# ------------------------------
+# Function to load CSV files
+# ------------------------------
+def load_csv_files(wd_file, all_user_file, salesforce_file):
+    wd_df = pd.read_csv(wd_file)
+    all_user_df = pd.read_csv(all_user_file)
+    salesforce_df = pd.read_csv(salesforce_file)
+    return wd_df, all_user_df, salesforce_df
+
+
+# ------------------------------
+# Function to normalize columns for case-insensitive comparison
+# ------------------------------
+def normalize_columns(df, columns):
+    for col in columns:
+        df[col] = df[col].astype(str).str.strip().str.lower()
+    return df
+
+
+# ------------------------------
+# Function to compare Salesforce vs All_User_File
+# ------------------------------
+def compare_users(all_user_df, salesforce_df):
+    # Find matching and non-matching users based on USER_ID & SalesforceUser_Alias
+    matching_users = all_user_df[all_user_df['USER_ID'].isin(salesforce_df['SalesforceUser_Alias'])]
+    non_matching_users = salesforce_df[~salesforce_df['SalesforceUser_Alias'].isin(all_user_df['USER_ID'])]
+    return matching_users, non_matching_users
+
+
+# ------------------------------
+# Function to fetch Functional_Business_Unit and Job_Family
+# ------------------------------
+def fetch_wd_data(matching_users, wd_df):
+    updated_users = matching_users.copy()
+    updated_users['Functional_Business_Unit'] = ''
+    updated_users['Job_Family'] = ''
+
+    for index, row in updated_users.iterrows():
+        user_type = row['USER_TYPE'].lower()
+        user_id = row['USER_ID'].lower()
+        manager_name = str(row['MANAGER']).lower()
+
+        if user_type == "employee":
+            # Fetch data where USER_ID(All_User_File) == User_Name(WD_File)
+            wd_row = wd_df[wd_df['User_Name'].str.lower() == user_id]
+            if not wd_row.empty:
+                updated_users.at[index, 'Functional_Business_Unit'] = wd_row['Functional_Business_Unit'].values[0]
+                updated_users.at[index, 'Job_Family'] = wd_row['Job_Family'].values[0]
+
+        elif user_type == "contractor/temp user":
+            # Fetch data where MANAGER(All_User_File) == Worker(WD_File)
+            wd_row = wd_df[wd_df['Worker'].str.lower() == manager_name]
+            if not wd_row.empty:
+                updated_users.at[index, 'Functional_Business_Unit'] = wd_row['Functional_Business_Unit'].values[0]
+                updated_users.at[index, 'Job_Family'] = wd_row['Job_Family'].values[0]
+
+    return updated_users
+
+
+# ------------------------------
+# Function to save final CSV
+# ------------------------------
+def save_to_csv(updated_users, output_file):
+    final_columns = ['USER_ID', 'EMAIL', 'USER_TYPE', 'Functional_Business_Unit',
+                     'Job_Family', 'COST_CENTER', 'ORGANIZATION', 'MANAGER']
+    updated_users.to_csv(output_file, columns=final_columns, index=False)
+    print(f"Updated data saved to {output_file}")
+
+
+# ------------------------------
+# Main function to run all steps
+# ------------------------------
+def main():
+    # Load CSV files
+    wd_df, all_user_df, salesforce_df = load_csv_files("WD_File.csv", "All_User_File.csv", "Salesforce_File.csv")
+
+    # Normalize for case-insensitive comparison
+    all_user_df = normalize_columns(all_user_df, ['USER_ID', 'MANAGER'])
+    salesforce_df = normalize_columns(salesforce_df, ['SalesforceUser_Alias'])
+    wd_df = normalize_columns(wd_df, ['User_Name', 'Worker'])
+
+    # Compare Salesforce vs All_User_File
+    matching_users, non_matching_users = compare_users(all_user_df, salesforce_df)
+
+    # Fetch Functional_Business_Unit & Job_Family
+    updated_users = fetch_wd_data(matching_users, wd_df)
+
+    # Save final output to CSV
+    save_to_csv(updated_users, "Updated_Users.csv")
+
+    # Print non-matching users
+    print("Users not present in All_User_File:")
+    print(non_matching_users['SalesforceUser_Alias'])
+
+
+# Run the main function
+if __name__ == "__main__":
+    main()
+
+
 
