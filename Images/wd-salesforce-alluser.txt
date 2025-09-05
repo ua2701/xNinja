@@ -796,6 +796,7 @@ MAIN STEPS:
    → Look up their manager's record in WD_File
    → Use manager's workplace info for the contractor
 
+
 4. CREATE FINAL REPORT
    - Combine all information into one table
    - Save as new CSV file
@@ -803,3 +804,12 @@ MAIN STEPS:
 
 
 
+
+
+
+
+
+
+
+
+Login Page → Okta SDK → Okta Authentication API → Okta Verify (MFA) → Event Hook → Okta Workflows → Profile Attributes → ID Token Claims → Security Score
