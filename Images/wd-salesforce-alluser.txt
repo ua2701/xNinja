@@ -759,3 +759,47 @@ CSV File Output:
 
 
 
+00000000000000000000000
+
+
+
+
+
+CSV DATA COMPARISON - SIMPLE HIGH-LEVEL EXPLANATION
+===================================================
+
+WHAT WE'RE DOING:
+- We have 3 CSV files with user information
+- We want to combine them into 1 complete report
+
+THE 3 FILES:
+1. Salesforce_File → Users in Salesforce system
+2. All_User_File → Master user database 
+3. WD_File → Employee workplace information
+
+MAIN STEPS:
+
+1. LOAD FILES
+   - Read all 3 CSV files
+
+2. FIND COMMON USERS
+   - See which Salesforce users also exist in All_User_File
+   - Make 2 lists: "Found" and "Not Found"
+
+3. GET EXTRA INFO FOR FOUND USERS
+   For each found user, add workplace info from WD_File:
+   
+   IF user is "Employee":
+   → Look up their own record in WD_File
+   
+   IF user is "Contractor":
+   → Look up their manager's record in WD_File
+   → Use manager's workplace info for the contractor
+
+4. CREATE FINAL REPORT
+   - Combine all information into one table
+   - Save as new CSV file
+   - Show summary on screen
+
+
+
