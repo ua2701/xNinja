@@ -616,4 +616,146 @@ if __name__ == "__main__":
     main()
 
 
+================
+
+CSV DATA COMPARISON AND MERGING - STEP-BY-STEP LOGIC EXPLANATION
+=======================================================================
+
+INPUT FILES STRUCTURE
+======================
+
+1. WD_File.csv
+   - Key Column: User_Name (for matching)
+   - Additional Columns: Worker, Full_Legal_Name, Functional_Business_Unit, Job_Family
+   - Purpose: Contains employee workplace data and organizational information
+
+2. All_User_File.csv
+   - Key Column: USER_ID (for matching)
+   - Additional Columns: EMAIL, USER_TYPE, ORGANIZATION, COST_CENTER, MANAGER
+   - Purpose: Master user database with basic user information
+
+3. Salesforce_File.csv
+   - Key Column: SalesforceUser_Alias (for matching)
+   - Purpose: Contains users who exist in Salesforce system
+
+STEP-BY-STEP PROCESSING LOGIC
+=============================
+
+STEP 1: File Loading and Initialization
+---------------------------------------
+1. Load all three CSV files into pandas DataFrames
+2. Handle any file loading errors gracefully
+3. Display success message once all files are loaded
+
+STEP 2: Data Normalization for Case-Insensitive Comparison
+----------------------------------------------------------
+Problem: User IDs and names might have different cases (e.g., "John Smith" vs "JOHN SMITH" vs "john smith")
+
+Solution:
+- Convert all comparison columns to lowercase
+- Strip leading/trailing whitespace
+- This ensures accurate matching regardless of case differences
+
+STEP 3: User Comparison Between Salesforce and All_User Files
+-------------------------------------------------------------
+Objective: Find which Salesforce users exist in the All_User_File
+
+Process:
+1. Get all unique users from Salesforce_File (SalesforceUser_Alias column)
+2. For each Salesforce user:
+   a. Check if this user exists in All_User_File (USER_ID column)
+   b. If found → Add to "existing_users" list
+   c. If not found → Add to "non_existing_users" list
+3. Extract complete records from All_User_File for existing users
+
+Result: 
+- DataFrame with existing users and their complete All_User_File data
+- List of users who don't exist in All_User_File
+
+STEP 4: Data Enrichment Based on User Type
+-------------------------------------------
+
+4A: For USER_TYPE = "Employee"
+------------------------------
+Logic: Employees should have their own record in WD_File
+
+Process:
+1. Take USER_ID from All_User_File
+2. Look for matching User_Name in WD_File
+3. If found: Extract Functional_Business_Unit and Job_Family
+4. If not found: Mark as "Not Found in WD_File"
+
+Matching Rule: USER_ID (All_User_File) == User_Name (WD_File)
+
+4B: For USER_TYPE = "Contractor" or "Temp User"
+-----------------------------------------------
+Logic: Contractors don't have their own WD record, so use their manager's data
+
+Process:
+1. Take MANAGER name from All_User_File
+2. Look for this manager in WD_File in TWO columns:
+   - Worker column
+   - Full_Legal_Name column
+3. If found in either column: Extract manager's Functional_Business_Unit and Job_Family
+4. If not found: Mark as "Manager Not Found in WD_File"
+5. Assign manager's organizational data to the contractor
+
+Matching Rule: MANAGER (All_User_File) == Worker OR Full_Legal_Name (WD_File)
+
+STEP 5: Final Data Assembly
+---------------------------
+For each user, compile final record with columns:
+- USER_ID (from All_User_File)
+- EMAIL (from All_User_File)  
+- USER_TYPE (from All_User_File)
+- Functional_Business_Unit (from WD_File - based on logic above)
+- Job_Family (from WD_File - based on logic above)
+- COST_CENTER (from All_User_File)
+- ORGANIZATION (from All_User_File)
+- MANAGER (from All_User_File)
+
+STEP 6: Output Generation
+-------------------------
+1. Create final DataFrame with enriched data
+2. Save to CSV file: "Final_User_Report.csv"
+3. Display summary report showing:
+   - All existing users with complete data
+   - List of non-existing users
+   - Total counts for each category
+
+KEY DESIGN DECISIONS
+====================
+
+Case-Insensitive Matching Strategy:
+- Problem: Names and IDs might have inconsistent capitalization
+- Solution: Normalize all text to lowercase before comparison
+- Implementation: normalize_column_data() function handles this uniformly
+
+Contractor Data Inheritance Logic:
+- Business Rule: Contractors inherit organizational data from their managers
+- Technical Implementation: Look up manager in WD_File and assign their 
+  Functional_Business_Unit and Job_Family to contractor
+- Fallback: If manager not found, clearly mark as "Manager Not Found in WD_File"
+
+Dual Column Matching for Managers:
+- Flexibility: Managers might be listed under either 'Worker' or 'Full_Legal_Name' in WD_File
+- Implementation: Use OR condition to check both columns
+- Benefit: Increases successful match rate
+
+EXPECTED OUTPUT
+===============
+
+Console Display:
+1. File loading status
+2. Comparison results summary
+3. Detailed user lists (existing and non-existing)
+4. Processing completion confirmation
+
+CSV File Output:
+- Filename: Final_User_Report.csv
+- Column Order: USER_ID, EMAIL, USER_TYPE, Functional_Business_Unit, 
+  Job_Family, COST_CENTER, ORGANIZATION, MANAGER
+- Content: Complete enriched data for all users found in both Salesforce and All_User files
+
+
 
