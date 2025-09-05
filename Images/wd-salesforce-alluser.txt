@@ -292,6 +292,9 @@ def main():
     # Step 4: Reorder columns
     final_df = final_df[['USER_ID', 'EMAIL', 'USER_TYPE', 'Functional_Business_Unit', 'Job_Family', 'COST_CENTER', 'ORGANIZATION', 'MANAGER']]
 
+
+
+
     # Step 5: Save final data to CSV
     save_to_csv(final_df, output_file)
 
@@ -299,4 +302,23 @@ def main():
 # Run the script
 if __name__ == "__main__":
     main()
+
+
+
+
+elif user_type == "Contractor/Temp User":
+    # Ensure both manager_name and Worker column are normalized: remove extra spaces, unify case
+    manager_name_clean = str(manager_name).strip().lower()  # Manager name from All_User_File
+    wd_df['Worker_clean'] = wd_df['Worker'].astype(str).str.strip().str.lower()  # Worker column from WD_File
+
+    # Match Manager name with Worker column
+    wd_row = wd_df[wd_df['Worker_clean'] == manager_name_clean]
+
+    # Check if match found
+    if not wd_row.empty:
+        updated_users.at[index, 'Functional_Business_Unit'] = wd_row['Functional_Business_Unit'].iloc[0]
+        updated_users.at[index, 'Job_Family'] = wd_row['Job_Family'].iloc[0]
+    else:
+        print(f"No match found for Manager: {manager_name}")
+
 
