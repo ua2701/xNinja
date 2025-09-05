@@ -813,3 +813,20 @@ MAIN STEPS:
 
 
 Login Page → Okta SDK → Okta Authentication API → Okta Verify (MFA) → Event Hook → Okta Workflows → Profile Attributes → ID Token Claims → Security Score
+
+
+
+
+
+
+
+In our hackathon project,
+Traditional way:
+On our company participant site customer user enters username & password then for MFA it is using twilio message or email code for 2nd Factor then redirects to inside the Website
+
+New way implemented in hackathon:
+User enters username and password then redirects to okta verify to enter TOTP or any of the authenticators that are configured and then redirected to inside the website 
+
+For this I hooked Okta SDKs inside the login page which cutoff traditional way and redirects to okta for authentication.
+
+When the user is not enrolled in any MFA, first the user will login into the website in the traditional and a PLA pops up to enroll into the MFA and then way then there is CTA on clicking that it triggers or forces the user to enroll into MFA. That CTA is linked to the url that trigger authenticator enrollment in okta for this I would like to thank Adam the Okta SE for providing this out of the box custom link which is actually not available anywhere publicly on the internet or the documentation After successfull enrollment it triggers an event in okta based on this event in the backend through Okta Event hook and Okat workflows I'm updating values in the profile attributes for example an attribute called mfa_enrolled which is a boolean when it is false it prompts for CTA on the first login and when it is true ir doesn't prompts and another profile attribute totp_enrolled when it is set to true  this value is used to calculate the Security Dashboard score and the users enrolls as much as authenticators it will set those values and those values will be used to compute score. To compute score through Okta ID/access token(here im not sure pls correct which is right) I'm fetching the claims and calulating the score in the frontend. for the respective based on which the PLA/ CTA is promoted.
