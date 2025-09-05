@@ -206,3 +206,97 @@ def main():
 # Execute the main function when script is run
 if __name__ == "__main__":
     main()
+
+
+-------------------------
+
+import pandas as pd
+
+# Function to read CSV files
+def read_csv_files(wd_file, all_user_file, salesforce_file):
+    wd_df = pd.read_csv(wd_file)
+    all_user_df = pd.read_csv(all_user_file)
+    salesforce_df = pd.read_csv(salesforce_file)
+    return wd_df, all_user_df, salesforce_df
+
+
+# Function to find matching and non-matching users
+def compare_users(all_user_df, salesforce_df):
+    # Users that exist in both files
+    matched_users = all_user_df[all_user_df['USER_ID'].isin(salesforce_df['SalesforceUser_Alias'])]
+    # Users that do not exist in All_User_File
+    unmatched_users = salesforce_df[~salesforce_df['SalesforceUser_Alias'].isin(all_user_df['USER_ID'])]
+    return matched_users, unmatched_users
+
+
+# Function to fetch Functional_Business_Unit & Job_Family based on user type
+def fetch_job_details(matched_users, wd_df):
+    # Copy matched_users to avoid modifying original DataFrame
+    updated_users = matched_users.copy()
+
+    # Create empty columns for Functional_Business_Unit & Job_Family
+    updated_users['Functional_Business_Unit'] = ""
+    updated_users['Job_Family'] = ""
+
+    for index, row in updated_users.iterrows():
+        user_id = row['USER_ID']
+        user_type = row['USER_TYPE']
+        manager_name = row['MANAGER']
+
+        if user_type == "Employee":
+            # Match USER_ID(All_User_File) with User_Name(WD_File)
+            wd_row = wd_df[wd_df['User_Name'] == user_id]
+            if not wd_row.empty:
+                updated_users.at[index, 'Functional_Business_Unit'] = wd_row['Functional_Business_Unit'].values[0]
+                updated_users.at[index, 'Job_Family'] = wd_row['Job_Family'].values[0]
+
+        elif user_type == "Contractor/Temp User":
+            # Match MANAGER(All_User_File) with Full_Legal_Name(WD_File)
+            wd_row = wd_df[wd_df['Full_Legal_Name'] == manager_name]
+            if not wd_row.empty:
+                updated_users.at[index, 'Functional_Business_Unit'] = wd_row['Functional_Business_Unit'].values[0]
+                updated_users.at[index, 'Job_Family'] = wd_row['Job_Family'].values[0]
+
+    return updated_users
+
+
+# Function to save final data to CSV
+def save_to_csv(final_df, output_file):
+    final_df.to_csv(output_file, index=False)
+    print(f"Updated data saved to {output_file}")
+
+
+# Main function
+def main():
+    # File paths
+    wd_file = "WD_File.csv"
+    all_user_file = "All_User_File.csv"
+    salesforce_file = "Salesforce_File.csv"
+    output_file = "Final_Output.csv"
+
+    # Step 1: Read CSV files
+    wd_df, all_user_df, salesforce_df = read_csv_files(wd_file, all_user_file, salesforce_file)
+
+    # Step 2: Find matched and unmatched users
+    matched_users, unmatched_users = compare_users(all_user_df, salesforce_df)
+
+    # Display users that exist in both files
+    print("Users present in both files:\n", matched_users[['USER_ID', 'EMAIL', 'USER_TYPE', 'ORGANIZATION', 'COST_CENTER', 'MANAGER']])
+
+    # Display users that do not exist in All_User_File
+    print("\nUsers not found in All_User_File:\n", unmatched_users['SalesforceUser_Alias'])
+
+    # Step 3: Fetch Functional_Business_Unit & Job_Family
+    final_df = fetch_job_details(matched_users, wd_df)
+
+    # Step 4: Reorder columns
+    final_df = final_df[['USER_ID', 'EMAIL', 'USER_TYPE', 'Functional_Business_Unit', 'Job_Family', 'COST_CENTER', 'ORGANIZATION', 'MANAGER']]
+
+    # Step 5: Save final data to CSV
+    save_to_csv(final_df, output_file)
+
+
+# Run the script
+if __name__ == "__main__":
+    main()
+
