@@ -864,3 +864,21 @@ Thank you for your support.
 
 Regards,
 [Your Name]
+
+============================
+
+Technical Script (1–2 min)
+
+"On the technical side, we integrated Okta SDKs directly into the login page to bypass the Standard MFA flow.
+
+When a user logs in, the application calls Okta for the authentication.
+
+If MFA enrollment exists, the user is redirected to Okta Verify or whichever authenticator they’ve enrolled in.
+
+If MFA isn’t set up, we see a PLA is triggered on first login with a CTA button.
+
+This CTA links to a very custom AUthenticator enrollment URL specially provided by Okta.
+
+Once the user completes enrollment, In Okta a event is registered and an Okta Event Hook triggered which in turn triggers Okta Workflows. These workflows update user custom profile attributes for example an attribute calle mfa_enrolled which ia a Boolean which determines the status of MFA enrollment These attributes control how the CTA should appear on first and future logins and oktaverify_enrolled which determines in which authenticator the user has enrolled & We fetch user attributes through the Okta ID Token claims after login Based on the enrolled authenticators, the frontend calculates the Security Dashboard score dynamically.
+
+The profile attributes drive group memberships via group rules. Sign-on policies at the group level decide whether MFA is needed. The number of MFA factors shown depends on the factors the user is already enrolled in
