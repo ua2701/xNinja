@@ -1,0 +1,1047 @@
+package org.example;
+
+import org.example.okta.OktaAuthService;
+import org.example.okta.JwtUtils;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import javax.swing.border.EmptyBorder;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+public class SimpleLoginAppWithOkta extends JFrame {
+
+    private CardLayout cardLayout;
+    private JPanel mainPanel;
+
+    // Login Page Components
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JButton loginButton;
+    private JButton oktaLoginButton;
+
+    // Welcome Page Components
+    private JLabel welcomeLabel;
+    private JButton logoutButton;
+    private JButton revokeTokensButton;
+    private JScrollPane tokenDetailsScrollPane;
+
+    // Store tokens for revocation
+    private String currentAccessToken;
+    private String currentRefreshToken;
+
+    // Hardcoded credentials
+    private static final String USERNAME = "admin";
+    private static final String PASSWORD = "password";
+
+    public SimpleLoginAppWithOkta() {
+        // --- Frame Setup ---
+        setTitle("Simple Login App with Okta Device Flow");
+        setSize(900, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setResizable(true);
+
+        // --- CardLayout Setup for page switching ---
+        cardLayout = new CardLayout();
+        mainPanel = new JPanel(cardLayout);
+
+        // --- Create Panels for each page ---
+        JPanel loginPanel = createLoginPage();
+        JPanel welcomePanel = createWelcomePage();
+
+        mainPanel.add(loginPanel, "Login");
+        mainPanel.add(welcomePanel, "Welcome");
+
+        add(mainPanel);
+
+        // Initially show the login page
+        cardLayout.show(mainPanel, "Login");
+    }
+
+    private JPanel createLoginPage() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(240, 248, 255)); // AliceBlue
+        panel.setBorder(new EmptyBorder(50, 50, 50, 50));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Login Title
+        JLabel loginTitle = new JLabel("User Login", SwingConstants.CENTER);
+        loginTitle.setFont(new Font("Arial", Font.BOLD, 24));
+        loginTitle.setForeground(new Color(51, 51, 51));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        panel.add(loginTitle, gbc);
+
+        // Username
+        JLabel usernameLabel = new JLabel("Username:");
+        usernameLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(usernameLabel, gbc);
+
+        usernameField = new JTextField(15);
+        usernameField.setFont(new Font("Arial", Font.PLAIN, 14));
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        panel.add(usernameField, gbc);
+
+        // Password
+        JLabel passwordLabel = new JLabel("Password:");
+        passwordLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(passwordLabel, gbc);
+
+        passwordField = new JPasswordField(15);
+        passwordField.setFont(new Font("Arial", Font.PLAIN, 14));
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        panel.add(passwordField, gbc);
+
+        // Login Button (local login)
+        loginButton = new JButton("Login");
+        loginButton.setFont(new Font("Arial", Font.BOLD, 14));
+        loginButton.setBackground(new Color(60, 179, 113)); // MediumSeaGreen
+        loginButton.setForeground(Color.WHITE);
+        loginButton.setFocusPainted(false);
+        loginButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(34, 139, 34), 2),
+                BorderFactory.createEmptyBorder(8, 20, 8, 20)));
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        panel.add(loginButton, gbc);
+
+        // OR Label
+        JLabel orLabel = new JLabel("OR", SwingConstants.CENTER);
+        orLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        panel.add(orLabel, gbc);
+
+        // Okta Login Button
+        oktaLoginButton = new JButton("Login with Okta (Device Flow)");
+        oktaLoginButton.setFont(new Font("Arial", Font.BOLD, 14));
+        oktaLoginButton.setBackground(new Color(30, 144, 255)); // DodgerBlue
+        oktaLoginButton.setForeground(Color.WHITE);
+        oktaLoginButton.setFocusPainted(false);
+        oktaLoginButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(25, 25, 112), 2),
+                BorderFactory.createEmptyBorder(8, 20, 8, 20)));
+
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.gridwidth = 2;
+        panel.add(oktaLoginButton, gbc);
+
+        // Action Listener for Local Login
+        loginButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String username = usernameField.getText();
+                String password = new String(passwordField.getPassword());
+
+                if (username.equals(USERNAME) && password.equals(PASSWORD)) {
+                    welcomeLabel.setText("Welcome " + USERNAME + "! (Local Authentication)");
+                    // Clear token details for local login
+                    clearTokenDetails();
+                    revokeTokensButton.setVisible(false);
+                    cardLayout.show(mainPanel, "Welcome");
+                } else {
+                    JOptionPane.showMessageDialog(SimpleLoginAppWithOkta.this,
+                            "Invalid username or password.",
+                            "Login Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        // Action Listener for Okta Login
+        oktaLoginButton.addActionListener(e -> {
+            // Disable button during authentication
+            oktaLoginButton.setEnabled(false);
+            oktaLoginButton.setText("Authenticating...");
+            
+            OktaAuthService.authenticate(new OktaAuthService.AuthCallback() {
+                @Override
+                public void onSuccess(String accessToken, String idToken, String refreshToken) {
+                    SwingUtilities.invokeLater(() -> {
+                        try {
+                            // Store tokens for potential revocation
+                            currentAccessToken = accessToken;
+                            currentRefreshToken = refreshToken;
+
+                            // Decode tokens
+                            JsonNode idClaims = JwtUtils.decodeJWT(idToken);
+                            JsonNode accessClaims = JwtUtils.decodeJWT(accessToken);
+
+                            // Extract username from ID token
+                            String username = extractUsername(idClaims);
+                            welcomeLabel.setText("Welcome " + username + "! (Okta Authentication)");
+
+                            // Display token details
+                            displayTokenDetails(idClaims, accessClaims, accessToken, idToken, refreshToken);
+                            
+                            // Show revoke button for Okta login
+                            revokeTokensButton.setVisible(true);
+
+                            cardLayout.show(mainPanel, "Welcome");
+
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(SimpleLoginAppWithOkta.this,
+                                    "Failed to parse tokens: " + ex.getMessage(),
+                                    "Token Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                        } finally {
+                            // Re-enable button
+                            oktaLoginButton.setEnabled(true);
+                            oktaLoginButton.setText("Login with Okta (Device Flow)");
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String message) {
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(SimpleLoginAppWithOkta.this,
+                                "Okta login failed: " + message,
+                                "Login Error",
+                                JOptionPane.ERROR_MESSAGE);
+                        
+                        // Re-enable button
+                        oktaLoginButton.setEnabled(true);
+                        oktaLoginButton.setText("Login with Okta (Device Flow)");
+                    });
+                }
+
+                @Override
+                public void onTimeout() {
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(SimpleLoginAppWithOkta.this,
+                                "Authentication timed out. The device code has expired.\nPlease try again.",
+                                "Authentication Timeout",
+                                JOptionPane.WARNING_MESSAGE);
+                        
+                        // Re-enable button
+                        oktaLoginButton.setEnabled(true);
+                        oktaLoginButton.setText("Login with Okta (Device Flow)");
+                    });
+                }
+            });
+        });
+
+        return panel;
+    }
+
+    private JPanel createWelcomePage() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(224, 255, 255)); // LightCyan
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setOpaque(false);
+
+        // Welcome Label
+        welcomeLabel = new JLabel("Welcome!", SwingConstants.LEFT);
+        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        welcomeLabel.setForeground(new Color(0, 128, 128)); // Teal
+        topPanel.add(welcomeLabel, BorderLayout.WEST);
+
+        // Button panel for logout and revoke
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setOpaque(false);
+
+        // Revoke Tokens Button (initially hidden)
+        revokeTokensButton = new JButton("Revoke Tokens");
+        revokeTokensButton.setFont(new Font("Arial", Font.BOLD, 12));
+        revokeTokensButton.setBackground(new Color(255, 140, 0)); // DarkOrange
+        revokeTokensButton.setForeground(Color.WHITE);
+        revokeTokensButton.setFocusPainted(false);
+        revokeTokensButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(255, 69, 0), 2),
+                BorderFactory.createEmptyBorder(6, 15, 6, 15)));
+        revokeTokensButton.setVisible(false);
+
+        // Logout Button
+        logoutButton = new JButton("Logout");
+        logoutButton.setFont(new Font("Arial", Font.BOLD, 14));
+        logoutButton.setBackground(new Color(255, 99, 71)); // Tomato
+        logoutButton.setForeground(Color.WHITE);
+        logoutButton.setFocusPainted(false);
+        logoutButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(205, 92, 92), 2),
+                BorderFactory.createEmptyBorder(8, 20, 8, 20)));
+
+        buttonPanel.add(revokeTokensButton);
+        buttonPanel.add(logoutButton);
+        topPanel.add(buttonPanel, BorderLayout.EAST);
+
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        // Revoke Tokens Action
+        revokeTokensButton.addActionListener(e -> {
+            if (currentRefreshToken != null) {
+                revokeTokensButton.setEnabled(false);
+                revokeTokensButton.setText("Revoking...");
+                
+                OktaAuthService.revokeToken(currentRefreshToken, new OktaAuthService.RevokeCallback() {
+                    @Override
+                    public void onSuccess() {
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(SimpleLoginAppWithOkta.this,
+                                    "Tokens have been successfully revoked.",
+                                    "Tokens Revoked",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                            
+                            // Clear stored tokens
+                            currentAccessToken = null;
+                            currentRefreshToken = null;
+                            
+                            // Hide revoke button
+                            revokeTokensButton.setVisible(false);
+                            revokeTokensButton.setEnabled(true);
+                            revokeTokensButton.setText("Revoke Tokens");
+                        });
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(SimpleLoginAppWithOkta.this,
+                                    "Failed to revoke tokens: " + message,
+                                    "Revocation Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                            
+                            revokeTokensButton.setEnabled(true);
+                            revokeTokensButton.setText("Revoke Tokens");
+                        });
+                    }
+                });
+            }
+        });
+
+        // Logout Action
+        logoutButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Clear form fields
+                usernameField.setText("");
+                passwordField.setText("");
+                
+                // Clear stored tokens
+                currentAccessToken = null;
+                currentRefreshToken = null;
+                
+                // Clear token details
+                clearTokenDetails();
+                
+                // Hide revoke button
+                revokeTokensButton.setVisible(false);
+                
+                cardLayout.show(mainPanel, "Login");
+            }
+        });
+
+        return panel;
+    }
+
+    private String extractUsername(JsonNode idClaims) {
+        if (idClaims.has("preferred_username")) {
+            return idClaims.get("preferred_username").asText();
+        } else if (idClaims.has("email")) {
+            return idClaims.get("email").asText();
+        } else if (idClaims.has("name")) {
+            return idClaims.get("name").asText();
+        } else if (idClaims.has("sub")) {
+            return idClaims.get("sub").asText();
+        } else {
+            return "Okta User";
+        }
+    }
+
+    private void displayTokenDetails(JsonNode idClaims, JsonNode accessClaims, 
+                                   String accessToken, String idToken, String refreshToken) {
+        try {
+            // Create text area for token details
+            JTextArea detailsArea = new JTextArea();
+            detailsArea.setEditable(false);
+            detailsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
+            // Build content grouped by token
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== ID TOKEN CLAIMS ===\n")
+              .append(JwtUtils.prettyPrint(idClaims))
+              .append("\n\n");
+
+            sb.append("=== ACCESS TOKEN CLAIMS ===\n")
+              .append(JwtUtils.prettyPrint(accessClaims))
+              .append("\n\n");
+
+            sb.append("=== RAW TOKENS ===\n")
+              .append("Access Token:\n").append(accessToken).append("\n\n")
+              .append("ID Token:\n").append(idToken).append("\n\n");
+            
+            if (refreshToken != null) {
+                sb.append("Refresh Token:\n").append(refreshToken).append("\n");
+            }
+
+            detailsArea.setText(sb.toString());
+
+            // Remove existing scroll pane if present
+            if (tokenDetailsScrollPane != null) {
+                JPanel welcomePanel = (JPanel) mainPanel.getComponent(1);
+                welcomePanel.remove(tokenDetailsScrollPane);
+            }
+
+            tokenDetailsScrollPane = new JScrollPane(detailsArea);
+            tokenDetailsScrollPane.setPreferredSize(new Dimension(800, 400));
+            tokenDetailsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            tokenDetailsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
+            JPanel welcomePanel = (JPanel) mainPanel.getComponent(1);
+            welcomePanel.add(tokenDetailsScrollPane, BorderLayout.CENTER);
+            welcomePanel.revalidate();
+            welcomePanel.repaint();
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to display token details: " + ex.getMessage(),
+                    "Display Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void clearTokenDetails() {
+        if (tokenDetailsScrollPane != null) {
+            JPanel welcomePanel = (JPanel) mainPanel.getComponent(1);
+            welcomePanel.remove(tokenDetailsScrollPane);
+            welcomePanel.revalidate();
+            welcomePanel.repaint();
+            tokenDetailsScrollPane = null;
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SimpleLoginAppWithOkta().setVisible(true));
+    }
+}
+
+=======================================================================================================
+
+package org.example.okta;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import okhttp3.*;
+
+import javax.swing.*;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import java.awt.Dimension;
+import java.awt.Desktop;
+import java.net.URI;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.Font;
+import java.awt.Component;
+import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+public class OktaAuthService {
+    private static final OkHttpClient client = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build();
+    
+    private static final ObjectMapper mapper = new ObjectMapper();
+    
+    // Polling constants
+    private static final int DEFAULT_POLLING_INTERVAL = 5; // seconds
+    private static final int MAX_POLLING_ATTEMPTS = 120; // 10 minutes max (600 seconds / 5 second intervals)
+
+    public interface AuthCallback {
+        void onSuccess(String accessToken, String idToken, String refreshToken);
+        void onError(String message);
+        void onTimeout();
+    }
+
+    public interface RevokeCallback {
+        void onSuccess();
+        void onError(String message);
+    }
+
+    public static void authenticate(AuthCallback callback) {
+        new Thread(() -> {
+            AtomicBoolean authCompleted = new AtomicBoolean(false);
+            
+            try {
+                // Step 1: Request device code
+                DeviceAuthResponse deviceAuth = requestDeviceCode();
+                if (deviceAuth == null) {
+                    callback.onError("Failed to obtain device authorization code");
+                    return;
+                }
+
+                // Step 2: Show user the verification details
+                SwingUtilities.invokeLater(() -> showVerificationDialog(deviceAuth));
+
+                // Step 3: Poll for tokens with proper error handling and timeout
+                pollForTokens(deviceAuth, callback, authCompleted);
+
+            } catch (Exception e) {
+                if (!authCompleted.get()) {
+                    callback.onError("Authentication exception: " + e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+    private static DeviceAuthResponse requestDeviceCode() {
+        try {
+            RequestBody body = new FormBody.Builder()
+                    .add("client_id", OktaConfig.CLIENT_ID)
+                    .add("scope", OktaConfig.SCOPE)
+                    .build();
+
+            Request request = new Request.Builder()
+                    .url(OktaConfig.OKTA_DOMAIN + "/oauth2/v1/device/authorize")
+                    .post(body)
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    System.err.println("Device authorization failed: " + response.code() + " - " + response.message());
+                    return null;
+                }
+
+                String responseBody = response.body().string();
+                JsonNode deviceResponse = mapper.readTree(responseBody);
+                
+                return new DeviceAuthResponse(
+                    deviceResponse.get("device_code").asText(),
+                    deviceResponse.get("user_code").asText(),
+                    deviceResponse.get("verification_uri").asText(),
+                    deviceResponse.has("verification_uri_complete") ? 
+                        deviceResponse.get("verification_uri_complete").asText() : null,
+                    deviceResponse.has("expires_in") ? deviceResponse.get("expires_in").asInt() : 600,
+                    deviceResponse.has("interval") ? deviceResponse.get("interval").asInt() : DEFAULT_POLLING_INTERVAL
+                );
+            }
+        } catch (Exception e) {
+            System.err.println("Exception during device code request: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static void showVerificationDialog(DeviceAuthResponse deviceAuth) {
+        // Panel with vertical layout
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setPreferredSize(new Dimension(600, 300));
+
+        // Title
+        JLabel lblTitle = new JLabel("Okta Device Authentication");
+        lblTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
+        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblTitle.setForeground(new Color(0, 102, 204));
+
+        // Instructions
+        JLabel lblInstructions = new JLabel("<html><div style='text-align: center;'>" +
+                "Complete authentication on another device within " + 
+                (deviceAuth.expiresIn / 60) + " minutes</div></html>");
+        lblInstructions.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        lblInstructions.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Step 1: Verification URI
+        JLabel lblStep1 = new JLabel("1. Open this link in your browser:");
+        lblStep1.setFont(new Font("SansSerif", Font.BOLD, 14));
+        lblStep1.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel uriPanel = createCopyableField(deviceAuth.verificationUri, true);
+
+        // Step 2: User Code
+        JLabel lblStep2 = new JLabel("2. Enter this activation code:");
+        lblStep2.setFont(new Font("SansSerif", Font.BOLD, 14));
+        lblStep2.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JTextField codeField = new JTextField(deviceAuth.userCode);
+        codeField.setEditable(false);
+        codeField.setFont(new Font("Monospaced", Font.BOLD, 18));
+        codeField.setForeground(Color.RED);
+        codeField.setHorizontalAlignment(JTextField.CENTER);
+        codeField.setMaximumSize(new Dimension(200, 30));
+        codeField.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Step 3: Direct Link (if available)
+        JPanel directPanel = null;
+        if (deviceAuth.verificationUriComplete != null) {
+            JLabel lblStep3 = new JLabel("3. Or click here to open with code pre-filled:");
+            lblStep3.setFont(new Font("SansSerif", Font.BOLD, 14));
+            lblStep3.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            directPanel = createCopyableField(deviceAuth.verificationUriComplete, true);
+        }
+
+        // Add components to panel
+        panel.add(lblTitle);
+        panel.add(Box.createVerticalStrut(15));
+        panel.add(lblInstructions);
+        panel.add(Box.createVerticalStrut(20));
+        panel.add(lblStep1);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(uriPanel);
+        panel.add(Box.createVerticalStrut(15));
+        panel.add(lblStep2);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(codeField);
+        
+        if (directPanel != null) {
+            panel.add(Box.createVerticalStrut(15));
+            JLabel lblStep3 = new JLabel("3. Or click here to open with code pre-filled:");
+            lblStep3.setFont(new Font("SansSerif", Font.BOLD, 14));
+            lblStep3.setAlignmentX(Component.LEFT_ALIGNMENT);
+            panel.add(lblStep3);
+            panel.add(Box.createVerticalStrut(5));
+            panel.add(directPanel);
+        }
+
+        // Show dialog
+        JOptionPane.showMessageDialog(
+                null,
+                panel,
+                "Okta Device Authentication - Complete on Another Device",
+                JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private static JPanel createCopyableField(String text, boolean addOpenButton) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        JTextField field = new JTextField(text);
+        field.setEditable(false);
+        field.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
+        JButton copyButton = new JButton("Copy");
+        copyButton.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        copyButton.addActionListener(e -> {
+            StringSelection selection = new StringSelection(text);
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+            copyButton.setText("Copied!");
+            Timer timer = new Timer(2000, evt -> copyButton.setText("Copy"));
+            timer.setRepeats(false);
+            timer.start();
+        });
+
+        panel.add(field);
+        panel.add(Box.createHorizontalStrut(5));
+        panel.add(copyButton);
+
+        if (addOpenButton) {
+            JButton openButton = new JButton("Open");
+            openButton.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            openButton.addActionListener(e -> {
+                try {
+                    if (Desktop.isDesktopSupported()) {
+                        Desktop.getDesktop().browse(new URI(text));
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, 
+                        "Could not open browser. Please copy and paste the URL manually.",
+                        "Browser Error", 
+                        JOptionPane.WARNING_MESSAGE);
+                }
+            });
+            panel.add(Box.createHorizontalStrut(5));
+            panel.add(openButton);
+        }
+
+        return panel;
+    }
+
+    private static void pollForTokens(DeviceAuthResponse deviceAuth, AuthCallback callback, AtomicBoolean authCompleted) {
+        int pollingInterval = Math.max(deviceAuth.interval, 1); // Ensure minimum 1 second
+        int maxAttempts = Math.max(deviceAuth.expiresIn / pollingInterval, MAX_POLLING_ATTEMPTS);
+        int attempts = 0;
+
+        while (attempts < maxAttempts && !authCompleted.get()) {
+            try {
+                TimeUnit.SECONDS.sleep(pollingInterval);
+                attempts++;
+
+                RequestBody tokenBody = new FormBody.Builder()
+                        .add("client_id", OktaConfig.CLIENT_ID)
+                        .add("device_code", deviceAuth.deviceCode)
+                        .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
+                        .build();
+
+                Request tokenRequest = new Request.Builder()
+                        .url(OktaConfig.OKTA_DOMAIN + "/oauth2/v1/token")
+                        .post(tokenBody)
+                        .header("Accept", "application/json")
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .build();
+
+                try (Response tokenResponse = client.newCall(tokenRequest).execute()) {
+                    String tokenRespStr = tokenResponse.body().string();
+
+                    if (tokenResponse.isSuccessful()) {
+                        // Success - parse tokens
+                        JsonNode tokenJson = mapper.readTree(tokenRespStr);
+                        String accessToken = tokenJson.get("access_token").asText();
+                        String idToken = tokenJson.has("id_token") ? tokenJson.get("id_token").asText() : null;
+                        String refreshToken = tokenJson.has("refresh_token") ? tokenJson.get("refresh_token").asText() : null;
+                        
+                        authCompleted.set(true);
+                        callback.onSuccess(accessToken, idToken, refreshToken);
+                        return;
+                        
+                    } else {
+                        // Handle error responses
+                        JsonNode errorResp = mapper.readTree(tokenRespStr);
+                        String error = errorResp.has("error") ? errorResp.get("error").asText() : "unknown_error";
+                        String errorDescription = errorResp.has("error_description") ? 
+                            errorResp.get("error_description").asText() : "";
+
+                        switch (error) {
+                            case "authorization_pending":
+                                // Continue polling - user hasn't completed auth yet
+                                System.out.println("Authorization pending, attempt " + attempts + "/" + maxAttempts);
+                                break;
+                                
+                            case "slow_down":
+                                // Increase polling interval as requested by server
+                                pollingInterval = Math.max(pollingInterval + 5, 10);
+                                System.out.println("Slow down requested, increasing interval to " + pollingInterval + " seconds");
+                                break;
+                                
+                            case "expired_token":
+                                // Device code has expired
+                                authCompleted.set(true);
+                                callback.onTimeout();
+                                return;
+                                
+                            case "access_denied":
+                                // User denied the authorization request
+                                authCompleted.set(true);
+                                callback.onError("Access denied: The user denied the authorization request");
+                                return;
+                                
+                            default:
+                                // Other errors
+                                authCompleted.set(true);
+                                callback.onError("Authentication failed: " + error + 
+                                    (errorDescription.isEmpty() ? "" : " - " + errorDescription));
+                                return;
+                        }
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                if (!authCompleted.get()) {
+                    authCompleted.set(true);
+                    callback.onError("Authentication interrupted");
+                }
+                return;
+            } catch (Exception e) {
+                System.err.println("Polling attempt " + attempts + " failed: " + e.getMessage());
+                // Continue polling unless we've exceeded max attempts
+            }
+        }
+
+        // If we reach here, we've exceeded max attempts
+        if (!authCompleted.get()) {
+            authCompleted.set(true);
+            callback.onTimeout();
+        }
+    }
+
+    public static void revokeToken(String refreshToken, RevokeCallback callback) {
+        new Thread(() -> {
+            try {
+                RequestBody body = new FormBody.Builder()
+                        .add("token", refreshToken)
+                        .add("token_type_hint", "refresh_token")
+                        .add("client_id", OktaConfig.CLIENT_ID)
+                        .build();
+
+                Request request = new Request.Builder()
+                        .url(OktaConfig.OKTA_DOMAIN + "/oauth2/v1/revoke")
+                        .post(body)
+                        .header("Accept", "application/json")
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .build();
+
+                try (Response response = client.newCall(request).execute()) {
+                    if (response.isSuccessful() || response.code() == 200) {
+                        callback.onSuccess();
+                    } else {
+                        String errorMsg = "HTTP " + response.code();
+                        try {
+                            String responseBody = response.body().string();
+                            JsonNode errorResp = mapper.readTree(responseBody);
+                            if (errorResp.has("error_description")) {
+                                errorMsg += ": " + errorResp.get("error_description").asText();
+                            } else if (errorResp.has("error")) {
+                                errorMsg += ": " + errorResp.get("error").asText();
+                            }
+                        } catch (Exception e) {
+                            // Use default error message if parsing fails
+                        }
+                        callback.onError(errorMsg);
+                    }
+                }
+            } catch (Exception e) {
+                callback.onError("Exception during token revocation: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // Helper class to hold device authorization response data
+    private static class DeviceAuthResponse {
+        final String deviceCode;
+        final String userCode;
+        final String verificationUri;
+        final String verificationUriComplete;
+        final int expiresIn;
+        final int interval;
+
+        DeviceAuthResponse(String deviceCode, String userCode, String verificationUri, 
+                          String verificationUriComplete, int expiresIn, int interval) {
+            this.deviceCode = deviceCode;
+            this.userCode = userCode;
+            this.verificationUri = verificationUri;
+            this.verificationUriComplete = verificationUriComplete;
+            this.expiresIn = expiresIn;
+            this.interval = interval;
+        }
+    }
+}
+
+==================================================================================================
+
+package org.example.okta;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.Base64;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+
+public class JwtUtils {
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final DateTimeFormatter DATE_FORMATTER = 
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneId.systemDefault());
+
+    public static JsonNode decodeJWT(String jwt) throws Exception {
+        if (jwt == null || jwt.trim().isEmpty()) {
+            throw new IllegalArgumentException("JWT cannot be null or empty");
+        }
+
+        String[] parts = jwt.split("\\.");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Invalid JWT format - expected 3 parts separated by dots");
+        }
+
+        try {
+            // Decode the payload (second part)
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            return mapper.readTree(payload);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Base64 encoding in JWT payload", e);
+        }
+    }
+
+    public static JsonNode decodeJWTHeader(String jwt) throws Exception {
+        if (jwt == null || jwt.trim().isEmpty()) {
+            throw new IllegalArgumentException("JWT cannot be null or empty");
+        }
+
+        String[] parts = jwt.split("\\.");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Invalid JWT format - expected 3 parts separated by dots");
+        }
+
+        try {
+            // Decode the header (first part)
+            String header = new String(Base64.getUrlDecoder().decode(parts[0]));
+            return mapper.readTree(header);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Base64 encoding in JWT header", e);
+        }
+    }
+
+    public static String prettyPrint(JsonNode node) throws Exception {
+        if (node == null) {
+            return "null";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(node));
+        
+        // Add human-readable timestamps for common time fields
+        if (node.isObject()) {
+            appendTimeInfo(sb, node, "exp", "Expires");
+            appendTimeInfo(sb, node, "iat", "Issued At");
+            appendTimeInfo(sb, node, "nbf", "Not Before");
+            appendTimeInfo(sb, node, "auth_time", "Auth Time");
+        }
+
+        return sb.toString();
+    }
+
+    private static void appendTimeInfo(StringBuilder sb, JsonNode node, String fieldName, String label) {
+        if (node.has(fieldName) && node.get(fieldName).isNumber()) {
+            try {
+                long timestamp = node.get(fieldName).asLong();
+                Instant instant = Instant.ofEpochSecond(timestamp);
+                String formatted = DATE_FORMATTER.format(instant);
+                sb.append("\n\n/* ").append(label).append(": ").append(formatted).append(" */");
+            } catch (Exception e) {
+                // Ignore formatting errors
+            }
+        }
+    }
+
+    public static boolean isTokenExpired(String jwt) {
+        try {
+            JsonNode payload = decodeJWT(jwt);
+            if (payload.has("exp")) {
+                long exp = payload.get("exp").asLong();
+                return Instant.now().getEpochSecond() >= exp;
+            }
+            return false; // No expiration claim
+        } catch (Exception e) {
+            return true; // Assume expired if we can't parse
+        }
+    }
+
+    public static String getTokenSubject(String jwt) {
+        try {
+            JsonNode payload = decodeJWT(jwt);
+            return payload.has("sub") ? payload.get("sub").asText() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static String getTokenIssuer(String jwt) {
+        try {
+            JsonNode payload = decodeJWT(jwt);
+            return payload.has("iss") ? payload.get("iss").asText() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static long getTokenExpirationTime(String jwt) {
+        try {
+            JsonNode payload = decodeJWT(jwt);
+            return payload.has("exp") ? payload.get("exp").asLong() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    public static String formatTokenInfo(String jwt, String tokenType) throws Exception {
+        JsonNode header = decodeJWTHeader(jwt);
+        JsonNode payload = decodeJWT(jwt);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== ").append(tokenType.toUpperCase()).append(" TOKEN ===\n\n");
+        
+        sb.append("Header:\n");
+        sb.append(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(header));
+        sb.append("\n\nPayload:\n");
+        sb.append(prettyPrint(payload));
+        
+        return sb.toString();
+    }
+}
+
+
+======================================================================================
+
+package org.example.okta;
+
+public class OktaConfig {
+    // Okta domain - replace with your actual Okta domain
+    public static final String OKTA_DOMAIN = "https://dev-08094251.okta.com";
+    
+    // Client ID from your Native Application in Okta
+    public static final String CLIENT_ID = "0oaq0kywq9A86Thi35d7";
+    
+    // Scopes to request - customize as needed
+    public static final String SCOPE = "openid profile email offline_access";
+    
+    // Authorization server path (use "default" for custom auth server, or remove for org auth server)
+    public static final String AUTH_SERVER_PATH = "/oauth2/v1"; // For org auth server
+    // public static final String AUTH_SERVER_PATH = "/oauth2/default/v1"; // For custom "default" auth server
+    
+    // Timeout configurations
+    public static final int DEVICE_CODE_TIMEOUT_MINUTES = 10; // Maximum time to wait for user authentication
+    public static final int MIN_POLLING_INTERVAL_SECONDS = 5;   // Minimum polling interval
+    
+    // Application information
+    public static final String APP_NAME = "Simple Login App with Okta";
+    public static final String APP_VERSION = "1.0.0";
+    
+    // Validation settings
+    public static final boolean VALIDATE_ISSUER = true;
+    public static final boolean VALIDATE_AUDIENCE = true;
+    
+    /**
+     * Get the full URL for the device authorization endpoint
+     */
+    public static String getDeviceAuthorizationUrl() {
+        return OKTA_DOMAIN + AUTH_SERVER_PATH + "/device/authorize";
+    }
+    
+    /**
+     * Get the full URL for the token endpoint
+     */
+    public static String getTokenUrl() {
+        return OKTA_DOMAIN + AUTH_SERVER_PATH + "/token";
+    }
+    
+    /**
+     * Get the full URL for the token revocation endpoint
+     */
+    public static String getRevokeUrl() {
+        return OKTA_DOMAIN + AUTH_SERVER_PATH + "/revoke";
+    }
+    
+    /**
+     * Get the full URL for the user info endpoint
+     */
+    public static String getUserInfoUrl() {
+        return OKTA_DOMAIN + AUTH_SERVER_PATH + "/userinfo";
+    }
+    
+    /**
+     * Get the expected issuer for token validation
+     */
+    public static String getExpectedIssuer() {
+        return OKTA_DOMAIN + AUTH_SERVER_PATH.replace("/v1", "");
+    }
+}
