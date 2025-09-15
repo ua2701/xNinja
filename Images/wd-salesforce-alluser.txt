@@ -882,3 +882,18 @@ This CTA links to a very custom AUthenticator enrollment URL specially provided 
 Once the user completes enrollment, In Okta a event is registered and an Okta Event Hook triggered which in turn triggers Okta Workflows. These workflows update user custom profile attributes for example an attribute calle mfa_enrolled which ia a Boolean which determines the status of MFA enrollment These attributes control how the CTA should appear on first and future logins and oktaverify_enrolled which determines in which authenticator the user has enrolled & We fetch user attributes through the Okta ID Token claims after login Based on the enrolled authenticators, the frontend calculates the Security Dashboard score dynamically.
 
 The profile attributes drive group memberships via group rules. Sign-on policies at the group level decide whether MFA is needed. The number of MFA factors shown depends on the factors the user is already enrolled in
+
+
+
+
+=============================
+
+Logged in with an idea → Logged out with a Hackathon Win! 🏆
+Our team has participated in the 2025 Empower Hackathon with a project focused on reimagining authentication.
+The project was a huge success and we secured 3rd place at the hackathon! More importantly, it received recognition from key leaders, creating momentum for what’s next.
+I'm very grateful to James Hirsbrunner for believing in me and providing me the opportunity. Your support and encouragement has been my biggest strength! 🙏
+A heartfelt thank you to Bharat Katkar for being such a great mentor and guide. From tech skills to soft skills to even life lessons, you have shaped the way I think and work. 😇
+And of course, a huge shoutout to my amazing teammates Trish M, CISSP, CCSK, Tyler Boscia, Madison Heath, Alisa Chadwick, and Maxime Rousseau. Your energy, dedication, and teamwork made this project come to life. This whole journey from idea to design, development, execution, and presentation has been a big learning experience and one I’ll always value.
+Note: Due to company policies, I cannot share details about the project.
+#Hackathon #Empower #Winner
+
