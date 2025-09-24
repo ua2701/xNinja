@@ -899,4 +899,11 @@ Note: Due to company policies, I cannot share details about the project.
 
 =============================
 
-Thank you, Sandeep, for being the senior colleague I feel comfortable reaching out to for anything - from complex things to even simple questions. You are always so patient and take the time to advise, guide, and answer everything. My Okta journey has been very smooth so far because of you, and all the app integrations and POCs carried out till now have all been successful thanks to your encouragement. You have inspired me to learn and grow, and one day I hope to guide others with the same professionalism and dedication with which you have guided me.
+Thank you, Sandeep, for being the senior colleague I feel comfortable reaching out to for anything - from complex things to even simple questions. You are always so patient and take the time to advise, guide, and answer everything. My Okta journey has been very smooth so far because of you, and all the app integrations and POCs carried out till now have all been successful thanks to your 
+encouragement. You have inspired me to learn and grow, and one day I hope to guide others with the same professionalism and dedication with which you have guided me.
+
+
+
+
+Great!
+Kramer, Matt, please let us know when you plan to integrate the Prod environment. We will provide a separate API token exclusively for Prod instances so that we maintain two tokens — one for Prod and one for Non-Prod. The existing token can continue to be used for all Non-Prod instances. When you are ready for the Prod integration, kindly inform us, and we will share the Prod token.
