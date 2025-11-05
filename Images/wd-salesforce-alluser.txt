@@ -980,3 +980,46 @@ SAP Basis Role – To-Do List
  Needs GridLinkUtil role permissions
  Assign the role to the list of users
 
+
+import json
+import csv
+
+# Read JSON file
+json_file = 'data.json'
+with open(json_file, 'r') as f:
+    json_data = json.load(f)
+
+# Read CSV file
+csv_file = 'users.csv'
+csv_data = []
+with open(csv_file, 'r') as f:
+    reader = csv.DictReader(f, delimiter='\t')
+    for row in reader:
+        csv_data.append(row)
+
+# Match and combine data
+output_data = []
+for csv_row in csv_data:
+    for json_row in json_data:
+        # Check if objectSid from CSV matches sid from JSON
+        if csv_row['objectSid'] == json_row['sid']:
+            # Create new row with combined data
+            new_row = {
+                'SamAccountName': csv_row['SamAccountName'],
+                'UserPrincipalName': csv_row['UserPrincipalName'],
+                'email': json_row['email'],
+                'objectSid': csv_row['objectSid']
+            }
+            output_data.append(new_row)
+            break  # Found match, move to next CSV row
+
+# Write output CSV
+output_file = 'output.csv'
+with open(output_file, 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=['SamAccountName', 'UserPrincipalName', 'email', 'objectSid'], delimiter='\t')
+    writer.writeheader()
+    writer.writerows(output_data)
+
+print(f"Done! Output saved to {output_file}")
+print(f"Total matches found: {len(output_data)}")
+
