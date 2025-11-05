@@ -907,3 +907,76 @@ encouragement. You have inspired me to learn and grow, and one day I hope to gui
 
 Great!
 Kramer, Matt, please let us know when you plan to integrate the Prod environment. We will provide a separate API token exclusively for Prod instances so that we maintain two tokens — one for Prod and one for Non-Prod. The existing token can continue to be used for all Non-Prod instances. When you are ready for the Prod integration, kindly inform us, and we will share the Prod token.
+
+
+
+1. BeyondTrust
+Issue had: BeyondTrust support needed scan logs of those AWS servers to resolve DNS issues, I have the logs in a zip file on the BT server but cannot transfer them to my desktop due to Network folder access permission.
+Now I got the issue resolved - I will retrieve logs and send them to BeyondTrust support.
+
+2. CyberArk DNA Scanner
+Lucas (Harish Team Member) posted the tool in a SharePoint collaboration site and I cannot access the SharePoint link. I have requested them to provide the the access.
+License is already available, no issues here. Once tool is obtained, I will install it on Windows management BT Prod server and run/test the scan.
+
+3. Vulnerability Management & Patching
+Worked with Priyanka on patching dev servers and waiting for next session on QA servers.
+Learn Ansible and work with Srikanth for automation of Nessus Agent installation and upgrades across our servers
+
+4. WAnywhere
+WAnywhere produces a daily CSV file uploaded to an S3 bucket and that CSV is consumed by a script. We want the ownership of that script and all the related docs handed over from Shepherds (vendor) to our team so we can maintain it going forward.
+
+5. AWS Cost Optimization
+We need to cut $3,600 from our Annual AWS spending. I'll work with Srikanth and Surendra to review the dashboard recommendations and implement optimizations for cost-savings.
+
+6.Splunk
+Work with Tom to understand how AD logs appear in Splunk, how alerts trigger email notifications, and the Splunk query syntax and filters.
+The objective is to become the team’s technical point of contact for anything related to Splunk and create the necessary Splunk alerts related to Active Directory user activity for our team.
+
+
+7. Okta ASA
+For the DMZ–Okta ASA transition, the roles, groups, and structure are yet to be defined.
+The POC and end-user documentation are complete. Vamshi to schedule working session with the ItsUnix and Middleware team to test and configure groups and roles in Okta ASA for selected users to test access to the DEV servers.
+
+8. Okta-App Integrations
+Integrated the applications with Okta with the timeline before November 1. Currently working on integrating the applications for which RSAM has been submitted.
+============
+Hi Jim,
+
+I've investigated the PAM-IAM Engineering-Users role and understand how it works. Here's what I found:
+
+HOW IT WORKS:
+1. The user gets assigned PAM role in OIM
+
+2. Approval Workflow is triggered
+
+1. The role provisions two accounts via the Access Policy (PAM-IAM Engineering-Users):
+   - Normal AD Account
+   - Privileged -A Account
+
+2. The -A account is created (AD Connector) and added to the BT Managed Groups
+   - PAM-IAM Engineering-Users (Authorisation group)
+   - PAM-PWD-A-Accounts
+
+3. That AD group is mapped in BeyondTrust to the servers
+
+4. Users can then PSM into those servers using their -A accounts
+
+VMware Console Role – To-Do List
+ Receive server list from Josh
+ Scan servers into BeyondTrust
+ Create AuthZ Group: PAM-VMware Console-Users
+ Create OIM Role: PAM-VMware Console-Users
+ Create OIM Access Policy: PAM-VMware Console-Users
+ Create approver role: PAM-VMware Console-Users_Approvers
+ Assign the role to the list of users - users list received
+
+SAP Basis Role – To-Do List
+ Receive server list from Dale - Already Provided
+ Scan servers into BeyondTrust - Both Prod and DR servers
+ Create AuthZ Group: PAM-SAP Basis-Users
+ Create OIM Role: policy: PAM-SAP Basis-Users
+ Create OIM Access Policy: policy: PAM-SAP Basis-Users
+ Create approver role: policy: PAM-SAP Basis-Users_Approvers
+ Needs GridLinkUtil role permissions
+ Assign the role to the list of users
+
